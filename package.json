@@ -7,7 +7,8 @@
     "test:live": "node --import ./scripts/register-ts-resolver.mjs --test --test-concurrency=5 src/interpret.live.ts",
     "typecheck": "tsc -p tsconfig.check.json",
     "gmail:check": "node --import ./scripts/register-ts-resolver.mjs scripts/gmail-check.ts",
-    "mail:dryrun": "node --import ./scripts/register-ts-resolver.mjs scripts/mail-dryrun.ts"
+    "mail:dryrun": "node --import ./scripts/register-ts-resolver.mjs scripts/mail-dryrun.ts",
+    "store:check": "node --import ./scripts/register-ts-resolver.mjs scripts/store-check.ts"
   },
   "engines": {
     "node": "24.x"

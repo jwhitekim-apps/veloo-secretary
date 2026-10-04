@@ -19,8 +19,11 @@ const LINK_URL = 'https://personal-secretary-kappa.vercel.app';
 
 // SUPABASE_URL과 SUPABASE_SERVICE_KEY가 있으면 영구 저장소를, 없으면 이번 호출 동안만 유지되는 메모리를 쓴다.
 function buildStore(env: Env) {
-  if (env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY) {
-    return { store: createSupabaseStore({ url: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_KEY }), durable: true };
+  // 환경 변수 값 앞뒤에 공백이 섞여 들어오는 실수가 잦아서 잘라서 쓴다.
+  const url = env.SUPABASE_URL?.trim();
+  const serviceKey = env.SUPABASE_SERVICE_KEY?.trim();
+  if (url && serviceKey) {
+    return { store: createSupabaseStore({ url, serviceKey }), durable: true };
   }
   return { store: createMemoryStore(), durable: false };
 }
