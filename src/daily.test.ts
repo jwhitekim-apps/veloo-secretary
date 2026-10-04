@@ -61,7 +61,8 @@ test('a normal morning: the mail becomes a task, is reported, and the report is 
   assert.match(text, /10\/8\(목\) 아침 보고/);
   assert.match(text, /추가: 학회 초록 마감\(11\/20\)/);
   assert.match(text, /오늘: 랩미팅 15:00/);
-  assert.doesNotMatch(text, /다른 날|끝난 일/);
+  assert.match(text, /임박: 다른 날\(10\/9\)/, 'a task due tomorrow is listed as upcoming');
+  assert.doesNotMatch(text, /끝난 일/, 'finished tasks are never listed');
   assert.ok(w.tasks.some((t) => t.memo.includes('[비서:mail:m1#0]')), 'task written to the ledger with the marker');
   assert.equal(await w.store.has('mail-seen', 'm1'), true);
   assert.equal(await w.store.has('mail-seen', 'ad1'), true);
@@ -174,4 +175,30 @@ test('notes such as a missing durable store are shown in the report', async () =
   const w = world();
   await runDaily(w.make({ notes: ['저장소가 설정되지 않아 이력이 유지되지 않아요'] }));
   assert.match(w.sent.join('\n'), /참고: 저장소가 설정되지 않아/);
+});
+
+test('open Veloo tasks appear by state; a task the assistant just added is listed once, under "추가" only', async () => {
+  const w = world({
+    tasks: [
+      { name: '논문지도비 송금', deadline: '2026-10-13' }, // 10/8 기준 5일 뒤
+      { name: '딥러닝 원서 공부', deadline: '2026-08-31' },
+      { name: '메일 정리', deadline: '' },
+      { name: '딥러닝 스터디 PPT 준비', deadline: '' }, // 폰 입력으로 방금 만들어진 마감 없는 태스크
+    ],
+  });
+  await w.store.record('intake', 'req1#0', { taskId: 4, name: '딥러닝 스터디 PPT 준비', deadline: '' }, T1.toISOString());
+  await runDaily(w.make());
+  const text = w.sent.join('\n');
+  assert.match(text, /임박: 논문지도비 송금\(10\/13\)/);
+  assert.match(text, /밀린 일: 딥러닝 원서 공부\(8\/31\)/);
+  assert.match(text, /할 일: 메일 정리/);
+  assert.match(text, /추가: 딥러닝 스터디 PPT 준비\(없음\)/);
+  assert.equal(text.match(/딥러닝 스터디 PPT 준비/g)?.length, 1, 'listed once, under "추가" only');
+});
+
+test('a dry run shows the same sections without writing', async () => {
+  const w = world({ tasks: [{ name: '메일 정리', deadline: '' }] });
+  const out = await runDaily(w.make({ dryRun: true }));
+  assert.match(out.messages.join('\n'), /할 일: 메일 정리/);
+  assert.equal(w.sent.length, 0);
 });

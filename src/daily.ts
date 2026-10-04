@@ -1,6 +1,6 @@
 import type { Candidate, Source, SyncResult } from './ledger.js';
 import type { MailTriageResult } from './mail.js';
-import { buildReport } from './report.js';
+import { buildReport, classifyOpenTasks } from './report.js';
 import type { Store } from './store.js';
 
 export type DailyDeps = {
@@ -84,11 +84,11 @@ export async function runDaily(deps: DailyDeps): Promise<DailyOutcome> {
     }
   }
 
-  // 2) 오늘 일정
+  // 2) 벨루의 남은 일(오늘·임박·밀린 일·마감 없음은 3번에서 나눈다)
   const today = localDate(deps.now, timeZone);
-  let tasksToday: { name: string; memo: string }[] = [];
+  let openTasks: { name: string; memo: string; deadline: string; done: boolean }[] = [];
   try {
-    tasksToday = (await deps.veloo.listTasks()).filter((t) => !t.done && t.deadline === today);
+    openTasks = await deps.veloo.listTasks();
   } catch (e) {
     await fail(`벨루 읽기 실패: ${errorText(e)}`);
   }
@@ -118,10 +118,24 @@ export async function runDaily(deps: DailyDeps): Promise<DailyOutcome> {
     failures.push(`처리 내역 읽기 실패: ${errorText(e)}`);
   }
   created.push(...preview);
+  // 이번 보고의 "추가" 항목은 다른 구역에 중복해서 보여 주지 않는다.
+  const sections = classifyOpenTasks(openTasks, today, new Set(created.map((c) => c.name.replace(' (예정, 저장 안 함)', ''))));
   const allFailures = [...new Set([...failures, ...storedFailures].filter(Boolean))];
 
   const messages = buildReport(
-    { now: deps.now, timeZone, tasksToday, created, proposals, uncertain, failures: allFailures, notes },
+    {
+      now: deps.now,
+      timeZone,
+      tasksToday: sections.today,
+      upcoming: sections.upcoming,
+      overdue: sections.overdue,
+      undated: sections.undated,
+      created,
+      proposals,
+      uncertain,
+      failures: allFailures,
+      notes,
+    },
     deps.limit,
     deps.maxMessages ?? 3,
   );

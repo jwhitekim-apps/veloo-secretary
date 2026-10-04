@@ -168,3 +168,27 @@ test('without any processing history, a Veloo task that already carries the sour
   assert.equal(f.calls.create, 1);
   assert.deepEqual(again.skipped.map((s) => s.reason), ['already-processed']);
 });
+
+test('re-sending the same input (e.g. after a shortcut error) does not create a second identical task', async () => {
+  const f = fakeVeloo();
+  const store = createMemoryStore();
+  await syncCandidates([cand({ name: '당근 택배 수거', deadline: '2026-10-06' })], { kind: 'intake', id: 'req1' }, { veloo: f.veloo, store });
+  const retry = await syncCandidates([cand({ name: '당근 택배 수거', deadline: '2026-10-06' })], { kind: 'intake', id: 'req2' }, { veloo: f.veloo, store });
+  assert.equal(f.calls.create, 1);
+  assert.deepEqual(retry.skipped.map((s) => s.reason), ['exists']);
+  assert.equal(retry.created.length, 0);
+});
+
+test('the same name with a different deadline is a different event and is created', async () => {
+  const f = fakeVeloo();
+  const store = createMemoryStore();
+  await syncCandidates([cand({ name: '랩미팅', deadline: '2026-10-06' })], { kind: 'intake', id: 'req1' }, { veloo: f.veloo, store });
+  await syncCandidates([cand({ name: '랩미팅', deadline: '2026-10-13' })], { kind: 'intake', id: 'req2' }, { veloo: f.veloo, store });
+  assert.equal(f.calls.create, 2);
+});
+
+test('a finished assistant task does not block creating the same task again', async () => {
+  const f = fakeVeloo([{ name: '당근 택배 수거', deadline: '2026-10-06', memo: '[비서:intake:old#0]', done: true }]);
+  const result = await syncCandidates([cand({ name: '당근 택배 수거', deadline: '2026-10-06' })], { kind: 'intake', id: 'req2' }, { veloo: f.veloo, store: createMemoryStore() });
+  assert.equal(result.created.length, 1);
+});

@@ -2,6 +2,9 @@ export type ReportInput = {
   now: Date;
   timeZone?: string;
   tasksToday: { name: string; memo: string }[];
+  upcoming?: { name: string; deadline: string }[];
+  overdue?: { name: string; deadline: string }[];
+  undated?: { name: string; note: string }[];
   created: { name: string; deadline: string }[];
   proposals: { name: string; currentDeadline: string; proposedDeadline: string }[];
   uncertain: string[];
@@ -10,6 +13,41 @@ export type ReportInput = {
 };
 
 const DEFAULT_TIME_ZONE = 'Asia/Seoul';
+const SECTION_CAP = 5;
+export const UPCOMING_DAYS = 7;
+
+const isYmd = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+function addDays(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+// 완료되지 않은 태스크를 마감 상태별로 나눈다. `YYYY-MM-DD`가 아닌 자유 문장 마감은 날짜로 읽을 수 없으므로 "마감 없음"으로 보고 문장을 덧붙인다.
+export function classifyOpenTasks(
+  tasks: { name: string; memo: string; deadline: string; done: boolean }[],
+  today: string,
+  excludeNames: ReadonlySet<string> = new Set(),
+  windowDays = UPCOMING_DAYS,
+) {
+  const last = addDays(today, windowDays);
+  const result = {
+    today: [] as { name: string; memo: string }[],
+    upcoming: [] as { name: string; deadline: string }[],
+    overdue: [] as { name: string; deadline: string }[],
+    undated: [] as { name: string; note: string }[],
+  };
+  for (const t of tasks) {
+    if (t.done || excludeNames.has(t.name)) continue;
+    if (!isYmd(t.deadline)) result.undated.push({ name: t.name, note: t.deadline.trim() });
+    else if (t.deadline === today) result.today.push({ name: t.name, memo: t.memo });
+    else if (t.deadline < today) result.overdue.push({ name: t.name, deadline: t.deadline });
+    else if (t.deadline <= last) result.upcoming.push({ name: t.name, deadline: t.deadline });
+  }
+  result.upcoming.sort((a, b) => a.deadline.localeCompare(b.deadline));
+  result.overdue.sort((a, b) => a.deadline.localeCompare(b.deadline));
+  return result;
+}
 
 function monthDay(ymd: string): string {
   const [, m, d] = ymd.split('-');
@@ -65,6 +103,13 @@ export function pack(lines: string[], limit: number, maxMessages: number): strin
   return chunks.map((c) => c.join('\n'));
 }
 
+// 한 구역을 최대 SECTION_CAP개까지 줄로 만들고, 넘으면 남은 개수를 한 줄로 알린다.
+function section<T>(label: string, items: T[], render: (item: T) => string): string[] {
+  const lines = items.slice(0, SECTION_CAP).map((item) => `${label}: ${render(item)}`);
+  if (items.length > SECTION_CAP) lines.push(`${label}: 외 ${items.length - SECTION_CAP}건`);
+  return lines;
+}
+
 export function buildReport(input: ReportInput, limit: number, maxMessages = 3): string[] {
   const timeZone = input.timeZone ?? DEFAULT_TIME_ZONE;
   const lines: string[] = [header(input.now, timeZone)];
@@ -77,6 +122,9 @@ export function buildReport(input: ReportInput, limit: number, maxMessages = 3):
   for (const u of input.uncertain) body.push(`확인: ${u}`);
   for (const c of input.created) body.push(`추가: ${c.name}(${monthDay(c.deadline)})`);
   for (const t of input.tasksToday) body.push(`오늘: ${t.name}${t.memo ? ` ${t.memo.split('\n')[0]}` : ''}`);
+  body.push(...section('임박', input.upcoming ?? [], (t) => `${t.name}(${monthDay(t.deadline)})`));
+  body.push(...section('밀린 일', input.overdue ?? [], (t) => `${t.name}(${monthDay(t.deadline)})`));
+  body.push(...section('할 일', input.undated ?? [], (t) => (t.note ? `${t.name}(${t.note})` : t.name)));
   for (const n of input.notes ?? []) body.push(`참고: ${n}`);
 
   if (body.length === 0) body.push('오늘 일정 없음. 추가·확인할 사항도 없어요.');

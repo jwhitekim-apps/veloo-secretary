@@ -78,12 +78,14 @@ test('a similar user-written task turns the reply into a proposal note instead o
   assert.equal(tasks.length, 1, 'no duplicate created');
 });
 
-test('sending the same sentence twice creates two tasks, because each request has its own source id', async () => {
+test('sending the same sentence twice (a retry) creates one task and the second reply says it already exists', async () => {
   const { deps, tasks } = setup(ok());
-  await processIntake({ text: 'x' }, deps);
-  await processIntake({ text: 'x' }, deps);
-  // 두 번째는 첫 번째가 만든(비서 표식이 있는) 태스크와는 비교하지 않으므로 새로 만들어진다.
-  assert.equal(tasks.length, 2);
+  const first = await processIntake({ text: 'x' }, deps);
+  const second = await processIntake({ text: 'x' }, deps);
+  assert.equal(tasks.length, 1);
+  assert.ok('message' in first && 'message' in second);
+  assert.match(first.message, /^추가했어요 1건/);
+  assert.match(second.message, /이미 있는 일정: 랩미팅\(10\/13, 15:00\)/);
 });
 
 test('a dry run shows the interpretation but writes nothing to Veloo or the history', async () => {

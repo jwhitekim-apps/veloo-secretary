@@ -92,6 +92,17 @@ export async function syncCandidates(
         continue;
       }
 
+      // 단축어가 오류를 보여서 같은 입력을 다시 보내는 경우를 막는다:
+      // 비서가 이미 만든 미완료 태스크와 이름과 마감이 모두 같으면 새로 만들지 않는다.
+      const repeat = existing.find(
+        (t) => !t.done && isAssistantTask(t) && t.deadline === candidate.deadline && sameName(t.name, candidate.name),
+      );
+      if (repeat) {
+        result.skipped.push({ candidate, reason: 'exists' });
+        await deps.store.record(source.kind, key, { matchedTaskId: repeat.id });
+        continue;
+      }
+
       const memo = [candidate.memo, marker].filter(Boolean).join('\n');
       const task = await deps.veloo.createTask({ ...candidate, memo });
       result.created.push({ candidate, task });
