@@ -28,6 +28,10 @@ Vercel Cron  --매일--> /api/cron/daily   (메일 선별 -> 벨루에 저장 ->
 
 **저장소(Supabase)가 없으면** 처리 이력이 호출마다 사라진다. 그러면 메일 중복 방지가 조회 기간(2일)에만 기대게 되고, 카카오 토큰이 갱신되어 새 리프레시 토큰이 나와도 저장되지 않는다. 보고에 "저장소가 설정되지 않아…"라는 참고 문구가 붙는다. 저장소를 쓰려면 Supabase SQL 편집기에서 `supabase/assistant.sql`을 한 번 실행하고 두 환경 변수를 넣는다.
 
+저장소 점검: `npm run store:check`는 실제 Supabase에 기록·중복 판별·조회·상태 저장을 시험하고 시험 데이터를 지운다(`.env.local`의 값을 쓴다).
+
+**지금 구성의 주의점**: 비서 테이블이 폴리오와 같은 Supabase 프로젝트에 있고, 서버가 쓰는 키는 그 프로젝트의 관리자 키다. 비서 서버가 뚫리면 폴리오 데이터에도 닿는다. 별도 프로젝트로 옮기려면 새 프로젝트에서 `supabase/assistant.sql`을 실행하고, `.env.local`과 Vercel의 `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`만 바꿔서 다시 배포한다(이력은 새로 시작된다).
+
 ## 환경 변수를 Vercel에 넣기
 
 ```
