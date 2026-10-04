@@ -3,9 +3,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --import ./scripts/register-ts-resolver.mjs --test",
+    "test:live": "node --import ./scripts/register-ts-resolver.mjs --test --test-concurrency=5 src/interpret.live.ts",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "gmail:check": "node --import ./scripts/register-ts-resolver.mjs scripts/gmail-check.ts",
+    "mail:dryrun": "node --import ./scripts/register-ts-resolver.mjs scripts/mail-dryrun.ts"
   },
   "engines": {
     "node": "24.x"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@google/genai": "^2.27.0"
   }
 }
