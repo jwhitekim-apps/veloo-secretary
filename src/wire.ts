@@ -10,12 +10,15 @@ import { interpretInput } from './interpret.js';
 import { createKakao, KAKAO_TEXT_LIMIT } from './kakao.js';
 import { syncCandidates } from './ledger.js';
 import { triageMail } from './mail.js';
+import { pack } from './report.js';
 import { createMemoryStore, createSupabaseStore } from './store.js';
 import { createVelooClient } from './veloo.js';
 
 type Env = Record<string, string | undefined>;
 
-const LINK_URL = 'https://personal-secretary-kappa.vercel.app';
+// 카톡 메시지에 붙는 링크는 눌렀을 때 열릴 곳이라 벨루로 보낸다(비서 서버의 첫 주소에는 보여 줄 페이지가 없다).
+const FALLBACK_LINK_URL = 'https://personal-secretary-kappa.vercel.app';
+const linkUrl = (env: Env) => env.VELOO_BASE_URL?.trim() || FALLBACK_LINK_URL;
 
 // SUPABASE_URL과 SUPABASE_SERVICE_KEY가 있으면 영구 저장소를, 없으면 이번 호출 동안만 유지되는 메모리를 쓴다.
 function buildStore(env: Env) {
@@ -71,7 +74,7 @@ export function createDailyRunner(env: Env) {
     restApiKey: kakaoEnv.KAKAO_REST_API_KEY,
     clientSecret: env.KAKAO_CLIENT_SECRET || undefined,
     refreshToken: kakaoEnv.KAKAO_REFRESH_TOKEN,
-    linkUrl: LINK_URL,
+    linkUrl: linkUrl(env),
     store,
   });
   const keywords = gmailEnv.MAIL_KEYWORDS.split(',').map((k) => k.trim()).filter(Boolean);
@@ -98,5 +101,22 @@ export function createDailyRunner(env: Env) {
       notes: durable ? [] : ['저장소가 설정되지 않아 처리 이력과 갱신된 토큰이 유지되지 않아요'],
       dryRun: options.dryRun,
     });
+  };
+}
+
+// 백그라운드로 처리한 결과를 카톡 나에게 보내기로 알린다. 한 통(200자)을 넘으면 문장 단위로 나눠 최대 3통까지 보낸다.
+export function createIntakeNotifier(env: Env) {
+  const { store } = buildStore(env);
+  const e = requireEnv(env, ['KAKAO_REST_API_KEY', 'KAKAO_REFRESH_TOKEN']);
+  const kakao = createKakao({
+    restApiKey: e.KAKAO_REST_API_KEY,
+    clientSecret: env.KAKAO_CLIENT_SECRET || undefined,
+    refreshToken: e.KAKAO_REFRESH_TOKEN,
+    linkUrl: linkUrl(env),
+    store,
+  });
+  return async (text: string) => {
+    const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+    for (const message of pack(sentences, KAKAO_TEXT_LIMIT, 3)) await kakao.send(message);
   };
 }

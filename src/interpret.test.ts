@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildMessage, calendarHint, interpretInput, type GenerateJson } from './interpret.ts';
+import { buildMessage, calendarHint, interpretInput, validateInput, type GenerateJson } from './interpret.ts';
 
 // 2026-10-07 수요일 12:00 KST
 const NOW = new Date('2026-10-07T03:00:00Z');
@@ -144,4 +144,12 @@ test('buildMessage joins several tasks', () => {
     [],
   );
   assert.equal(message, '인식한 일정 2건: A(11/20) / B(마감 없음).');
+});
+
+test('validateInput accepts text or an image and rejects everything else without calling a model', () => {
+  assert.equal(validateInput({ text: '금요일까지 보고서' }), null);
+  assert.equal(validateInput({ image: 'QUJD' }), null);
+  for (const bad of [{}, null, undefined, 'hello', { text: '   ' }, { text: 5 }, { image: '' }]) {
+    assert.equal(validateInput(bad), 'text or image is required');
+  }
 });

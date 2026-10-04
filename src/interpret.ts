@@ -137,12 +137,21 @@ export function buildMessage(
   return message;
 }
 
-export async function interpretInput(input: unknown, deps: InterpretDeps): Promise<InterpretResult> {
-  const timeZone = deps.timeZone ?? DEFAULT_TIME_ZONE;
+// 모델을 부르지 않고 입력만 검사한다. 문제가 있으면 오류 문장을, 없으면 null을 돌려준다.
+export function validateInput(input: unknown): string | null {
   const body = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
   const text = typeof body.text === 'string' ? body.text.trim() : '';
   const imageData = typeof body.image === 'string' ? body.image : '';
-  if (!text && !imageData) return { error: 'text or image is required' };
+  return text || imageData ? null : 'text or image is required';
+}
+
+export async function interpretInput(input: unknown, deps: InterpretDeps): Promise<InterpretResult> {
+  const timeZone = deps.timeZone ?? DEFAULT_TIME_ZONE;
+  const invalid = validateInput(input);
+  if (invalid) return { error: invalid };
+  const body = input as Record<string, unknown>;
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  const imageData = typeof body.image === 'string' ? body.image : '';
 
   const mimeType = typeof body.mimeType === 'string' && body.mimeType ? body.mimeType : 'image/jpeg';
   const raw = await deps.generateJson({

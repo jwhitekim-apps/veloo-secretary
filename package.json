@@ -18,6 +18,7 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@google/genai": "^2.27.0"
+    "@google/genai": "^2.27.0",
+    "@vercel/functions": "^3.9.11"
   }
 }
