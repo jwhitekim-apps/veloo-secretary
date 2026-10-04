@@ -1,0 +1,84 @@
+# 운영 방법
+
+## 구성
+
+```
+아이폰 단축어 --POST--> /api/intake      (해석 -> 벨루에 저장 -> 응답)
+Vercel Cron  --매일--> /api/cron/daily   (메일 선별 -> 벨루에 저장 -> 아침 보고 -> 카톡)
+```
+
+- Cron은 UTC 기준 `0 22 * * *`, 즉 **한국 시간 07:00**이다. 무료(Hobby) 플랜은 하루 한 번만 돌릴 수 있고 정확한 분에 실행되지 않을 수 있다(정확도는 첫 예약 실행 로그로 확인한다).
+- `/api/cron/ping`은 Cron 연결을 확인하려고 만든 임시 경로다. 첫 예약 실행이 로그에 찍히면 지운다.
+
+## 환경 변수
+
+| 이름 | 용도 | 필수 |
+|---|---|---|
+| `INTAKE_SECRET` | 단축어 인증 | 예 |
+| `CRON_SECRET` | Cron 호출 인증. 설정하면 Vercel이 호출 때 자동으로 `Authorization: Bearer`를 붙인다 | 예 |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | 모델 호출 | 예 |
+| `VELOO_BASE_URL`, `VELOO_USERNAME`, `VELOO_PASSWORD` | 벨루 로그인. 전용 계정을 권장한다 | 예 |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` | Gmail 읽기 | 매일 실행에 필요 |
+| `MAIL_KEYWORDS` | 메일 선별 키워드(쉼표 구분) | 매일 실행에 필요 |
+| `MAIL_LOOKBACK_DAYS` | 조회 기간(기본 2일) | 아니오 |
+| `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REFRESH_TOKEN` | 카톡 나에게 보내기 | 매일 실행에 필요 |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` | 처리 이력·토큰 저장소 | 사실상 필요(아래) |
+
+항목 이름만 `.env.example`에 있다. 실제 값은 `.env.local`(로컬)과 Vercel 환경 변수에만 둔다.
+
+**저장소(Supabase)가 없으면** 처리 이력이 호출마다 사라진다. 그러면 메일 중복 방지가 조회 기간(2일)에만 기대게 되고, 카카오 토큰이 갱신되어 새 리프레시 토큰이 나와도 저장되지 않는다. 보고에 "저장소가 설정되지 않아…"라는 참고 문구가 붙는다. 저장소를 쓰려면 Supabase SQL 편집기에서 `supabase/assistant.sql`을 한 번 실행하고 두 환경 변수를 넣는다.
+
+## 환경 변수를 Vercel에 넣기
+
+```
+vercel env add NAME production --sensitive    # 값은 프롬프트에 붙여 넣는다
+vercel env add NAME production --sensitive --force   # 이미 있는 값을 바꿀 때
+```
+
+환경 변수는 새 배포부터 적용된다. 바꾼 뒤에는 `vercel deploy --prod`를 다시 한다.
+
+## 매일 실행 확인과 시험
+
+```
+vercel crons list                       # 등록된 Cron
+vercel crons run /api/cron/daily        # 지금 한 번 실행(실제로 카톡이 간다)
+vercel logs --no-follow --limit 20 --expand
+```
+
+카톡을 보내지 않고 보고 내용만 보려면 시험 호출을 쓴다. **아무것도 쓰지 않는다**(벨루, 처리 이력, 보낸 시각 모두). 추가될 태스크는 `(예정, 저장 안 함)`으로 표시된다. 다만 메일 내용은 실제로 Gemini에 전송된다.
+
+```
+curl -H "Authorization: Bearer $CRON_SECRET" "https://personal-secretary-kappa.vercel.app/api/cron/daily?dry=1"
+```
+
+## 비서가 만든 태스크 찾기·지우기
+
+비서가 만든 태스크는 메모에 `[비서:mail:...]` 또는 `[비서:intake:...]` 표식이 있다. 벨루에서 메모로 검색하거나 목록을 훑어 지운다. **지워도 같은 출처에서 다시 만들어지지 않는다**(처리 이력이 별도로 있다).
+
+## 끄기와 되돌리기
+
+1. 아침 보고를 멈춘다: `vercel.json`의 `crons`에서 `/api/cron/daily` 항목을 지우고 재배포한다.
+2. 단축어를 멈춘다: 폰에서 단축어를 지우거나 `INTAKE_SECRET`을 바꾼다(서버와 단축어의 값이 다르면 401로 거부된다).
+3. 비서가 만든 태스크를 지운다: 위 방법으로 표식이 있는 태스크를 지운다.
+
+## 토큰 수명
+
+- 카카오 리프레시 토큰: 약 60일. 갱신하면 새 토큰이 같이 올 수 있고, 저장소가 있으면 자동으로 저장해서 이어 쓴다.
+- Gmail 리프레시 토큰: OAuth 동의 화면이 "테스트" 상태이면 7일 뒤에 만료될 수 있다고 알려져 있다. 개인용이면 "프로덕션으로 게시"로 바꾼다. 만료되면 보고에 `메일 선별 실패: Gmail token refresh failed -> 400 invalid_grant`가 올라온다.
+- 벨루 세션: 30일. 만료되면 자동으로 다시 로그인한다.
+
+## 실패가 보이는 곳
+
+모든 실패는 아침 보고 맨 위에 `⚠ 실패:`로 올라온다. 보고 전송 자체가 실패하면 다음 보고에 "보고 전송 실패"와 함께 놓친 내용이 같이 온다.
+
+| 보고의 문구 | 의미 |
+|---|---|
+| `벨루 읽기/쓰기 실패` | 벨루 서버에 닿지 않거나 로그인 실패 |
+| `메일 선별 실패` | Gmail 인증 만료 등 |
+| `보고 전송 실패` | 카카오 인증 만료 등 |
+| `참고: 저장소가 설정되지 않아…` | Supabase 환경 변수 없음 |
+
+## 알려진 제약
+
+- 벨루가 인터넷에서 접속되지 않으면(서버가 꺼져 있거나 외부 포트가 닫힌 경우) 쓰기와 오늘 일정 읽기가 실패한다. 이때도 일정 해석과 보고는 동작하고 실패가 보고에 올라온다.
+- 비서는 벨루 태스크를 **만들기만** 한다. 수정·삭제·메일 발송 도구는 코드에 없다(`docs/delegation.md`).
