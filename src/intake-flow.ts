@@ -1,5 +1,5 @@
 import type { Candidate, Source, SyncResult } from './ledger.js';
-import { describeTask } from './interpret.js';
+import { describeTask, readBackText } from './interpret.js';
 import type { InterpretResult } from './interpret.js';
 
 export type IntakeFlowDeps = {
@@ -48,5 +48,5 @@ export async function processIntake(
 
   if (interpreted.assumptions.length) parts.push(`추정: ${interpreted.assumptions.join('; ')}.`);
   if (interpreted.unreadable.length) parts.push(`읽을 수 없음: ${interpreted.unreadable.join('; ')}.`);
-  return { message: parts.join(' ') };
+  return { message: parts.join(' ') + readBackText(interpreted.transcript) };
 }

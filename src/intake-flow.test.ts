@@ -27,7 +27,7 @@ function setup(interpreted: InterpretResult, opts: { veloo?: 'ok' | 'down'; exis
 }
 
 const ok = (over: Partial<Extract<InterpretResult, { message: string }>> = {}): InterpretResult => ({
-  message: 'ignored', tasks: [{ name: '랩미팅', deadline: '2026-10-13', priority: 'normal', memo: '15:00' }], assumptions: [], unreadable: [], ...over,
+  message: 'ignored', tasks: [{ name: '랩미팅', deadline: '2026-10-13', priority: 'normal', memo: '15:00' }], assumptions: [], unreadable: [], transcript: '', ...over,
 });
 
 test('the task is written to Veloo and the reply says what was added', async () => {
@@ -54,7 +54,7 @@ test('an input error from interpretation is passed through untouched', async () 
 });
 
 test('when nothing schedule-like is found, nothing is written', async () => {
-  const { deps, tasks } = setup({ message: '일정을 찾지 못했어요.', tasks: [], assumptions: [], unreadable: [] });
+  const { deps, tasks } = setup({ message: '일정을 찾지 못했어요.', tasks: [], assumptions: [], unreadable: [], transcript: '' });
   const result = await processIntake({ text: '안녕' }, deps);
   assert.deepEqual(result, { message: '일정을 찾지 못했어요.' });
   assert.equal(tasks.length, 0);
@@ -95,4 +95,12 @@ test('a dry run shows the interpretation but writes nothing to Veloo or the hist
   assert.equal(result.message, '[시험: 저장 안 함] 인식한 일정 1건: 랩미팅(10/13, 15:00).');
   assert.equal(tasks.length, 0);
   assert.equal((await store.list('intake', '1970-01-01T00:00:00.000Z')).length, 0);
+});
+
+test('the reply to a photo includes what was read from it', async () => {
+  const { deps } = setup(ok({ transcript: '다른 논문들 더 찾아보기' }));
+  const result = await processIntake({ image: 'QUJD' }, deps);
+  assert.ok('message' in result);
+  assert.match(result.message, /^추가했어요 1건/);
+  assert.match(result.message, / 읽은 내용: "다른 논문들 더 찾아보기"\.$/);
 });

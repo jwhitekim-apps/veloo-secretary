@@ -38,18 +38,27 @@ function buildVeloo(env: Env, store: ReturnType<typeof buildStore>['store']) {
 
 function buildGenerateJson(env: Env) {
   const e = requireEnv(env, ['GEMINI_API_KEY', 'GEMINI_MODEL']);
-  return createGenerateJson({ apiKey: e.GEMINI_API_KEY, model: e.GEMINI_MODEL });
+  return createGenerateJson({ apiKey: e.GEMINI_API_KEY, model: e.GEMINI_MODEL, highModel: env.GEMINI_HIGH_MODEL });
 }
 
 export function createIntakeHandler(env: Env) {
   const { store } = buildStore(env);
   const generateJson = buildGenerateJson(env);
   const veloo = buildVeloo(env, store);
-  return (input: unknown, options: { dryRun?: boolean } = {}) =>
+  return (input: unknown, options: { dryRun?: boolean; quality?: 'high' } = {}) =>
     processIntake(
       input,
       {
-        interpret: (i) => interpretInput(i, { generateJson, now: new Date() }),
+        interpret: async (i) => {
+          const result = await interpretInput(i, {
+            generateJson,
+            now: new Date(),
+            quality: options.quality,
+            escalate: Boolean(env.GEMINI_HIGH_MODEL?.trim()),
+          });
+          if ('escalated' in result && result.escalated) console.log('[intake] 손글씨로 판단해 큰 모델로 다시 읽음');
+          return result;
+        },
         sync: (candidates, source) => syncCandidates(candidates, source, { veloo, store }),
         store,
         newId: randomUUID,

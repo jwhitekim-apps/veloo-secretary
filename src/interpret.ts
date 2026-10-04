@@ -5,11 +5,19 @@ export type GenerateJson = (request: {
   prompt: string;
   schema: object;
   image?: { data: string; mimeType: string };
+  quality?: 'high';
 }) => Promise<unknown>;
 
-export type InterpretDeps = { generateJson: GenerateJson; now: Date; timeZone?: string };
+export type InterpretDeps = {
+  generateJson: GenerateJson;
+  now: Date;
+  timeZone?: string;
+  quality?: 'high';
+  // true이면 가벼운 모델이 "손글씨가 있다"고 답한 이미지를 더 큰 모델로 다시 읽는다(큰 모델이 설정되어 있을 때만 켠다).
+  escalate?: boolean;
+};
 export type InterpretResult =
-  | { message: string; tasks: Task[]; assumptions: string[]; unreadable: string[] }
+  | { message: string; tasks: Task[]; assumptions: string[]; unreadable: string[]; transcript: string; escalated?: boolean }
   | { error: string };
 
 const DEFAULT_TIME_ZONE = 'Asia/Seoul';
@@ -34,8 +42,10 @@ const SCHEMA = {
     },
     assumptions: { type: 'array', items: { type: 'string' } },
     unreadable: { type: 'array', items: { type: 'string' } },
+    transcript: { type: 'string' },
+    handwritten: { type: 'boolean' },
   },
-  required: ['tasks', 'assumptions', 'unreadable'],
+  required: ['tasks', 'assumptions', 'unreadable', 'transcript', 'handwritten'],
 };
 
 function localDate(now: Date, timeZone: string): string {
@@ -72,11 +82,16 @@ function buildPrompt(now: Date, timeZone: string, text: string, hasImage: boolea
     '- 이미지에서 가려졌거나 잘렸거나 읽기 어려운 부분은 추측하지 말고 unreadable에 한 줄씩 적어라.',
     '- assumptions에는 입력에 정보가 없어서 네가 기본값을 정한 경우만 적어라. 예: "날짜 언급 없음 → 마감 없음". 요일이나 상대 날짜를 달력으로 계산한 것은 추정이 아니므로 적지 마라.',
     '- assumptions와 unreadable의 각 항목은 40자 이내로 짧게 써라.',
+    '- 입력이 이미지이면 먼저 이미지에 보이는 글을 위에서 아래로 **보이는 그대로** transcript에 옮겨 적어라(300자 이내). 뜻이 통하게 고치거나, 비슷한 단어로 바꾸거나, 요약하지 마라. 입력이 텍스트이면 transcript는 빈 문자열이다.',
+    '- handwritten: 이미지에서 일정이나 할 일을 담은 부분이 손으로 쓴 글씨이면 true, 인쇄된 글자나 화면 글자(메신저 대화, 웹페이지 등)뿐이면 false. 텍스트 입력이면 false.',
+    '- 손글씨는 글자 모양을 보고 읽되, 확신이 없는 글자는 아는 단어로 짐작해서 바꾸지 말고 보이는 모양 그대로 두고 unreadable에 적어라.',
+    '- name은 원문의 표현을 최대한 그대로 쓴다. 풀어 쓰거나 다른 말로 바꾸지 마라. 어미(~하고, ~하기)만 짧게 정리할 수 있다.',
+    '- 한 입력에 항목이 여러 개이면(줄 구분, 번호, 체크박스, 슬래시, 점, 쉼표로 이은 목록) 항목마다 따로 task로 만들어라. 하나도 빠뜨리지 마라.',
   ].join('\n');
 
   const parts = [rules, `\n현재 시간대: ${timeZone}\n달력:\n${calendarHint(now, timeZone)}`];
   if (text) parts.push(`\n입력 문장:\n"""${text}"""`);
-  if (hasImage) parts.push('\n첨부된 이미지는 화면 캡처다. 이미지 안의 일정을 읽어라.');
+  if (hasImage) parts.push('\n첨부된 이미지는 화면 캡처이거나 카메라로 찍은 사진(손글씨 메모, 포스터, 칠판, 종이 일정표 등)이다. 이미지 안의 일정과 할 일을 읽어라.');
   return parts.join('\n');
 }
 
@@ -113,7 +128,9 @@ function parseOutput(raw: unknown, today: string) {
     const memo = typeof item.memo === 'string' ? item.memo.trim() : '';
     tasks.push({ name, deadline, priority, memo });
   }
-  return { tasks, assumptions, unreadable: o.unreadable };
+  const transcript = typeof (raw as { transcript?: unknown }).transcript === 'string' ? ((raw as { transcript: string }).transcript).trim() : '';
+  const handwritten = (raw as { handwritten?: unknown }).handwritten === true;
+  return { tasks, assumptions, unreadable: o.unreadable, transcript, handwritten };
 }
 
 export function describeTask(task: { name: string; deadline: string; memo: string }): string {
@@ -121,6 +138,13 @@ export function describeTask(task: { name: string; deadline: string; memo: strin
   const parts = [task.deadline ? `${Number(month)}/${Number(day)}` : '마감 없음'];
   if (task.memo) parts.push(task.memo);
   return `${task.name}(${parts.join(', ')})`;
+}
+
+// 이미지에서 읽은 글을 응답에 덧붙인다. 잘못 읽은 글자를 사용자가 바로 알아볼 수 있게 하기 위한 것이다.
+export function readBackText(transcript: string, limit = 100): string {
+  const text = transcript.replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  return ` 읽은 내용: "${text.length <= limit ? text : `${text.slice(0, limit - 1)}…`}".`;
 }
 
 export function buildMessage(
@@ -154,12 +178,28 @@ export async function interpretInput(input: unknown, deps: InterpretDeps): Promi
   const imageData = typeof body.image === 'string' ? body.image : '';
 
   const mimeType = typeof body.mimeType === 'string' && body.mimeType ? body.mimeType : 'image/jpeg';
-  const raw = await deps.generateJson({
+  const request = {
     prompt: buildPrompt(deps.now, timeZone, text, Boolean(imageData)),
     schema: SCHEMA,
     image: imageData ? { data: imageData, mimeType } : undefined,
-  });
+  };
+  const today = localDate(deps.now, timeZone);
 
-  const { tasks, assumptions, unreadable } = parseOutput(raw, localDate(deps.now, timeZone));
-  return { message: buildMessage(tasks, assumptions, unreadable), tasks, assumptions, unreadable };
+  let parsed = parseOutput(await deps.generateJson({ ...request, quality: deps.quality }), today);
+
+  // 손글씨는 가벼운 모델이 틀리고도 확신 있게 틀리므로(비교 시험), 손글씨라고 답한 이미지는 큰 모델로 다시 읽는다.
+  // 이미 고품질을 요청했거나(처음부터 큰 모델) 텍스트 입력이면 하지 않는다.
+  let escalated = false;
+  if (imageData && deps.escalate && !deps.quality && parsed.handwritten) {
+    try {
+      parsed = parseOutput(await deps.generateJson({ ...request, quality: 'high' }), today);
+      escalated = true;
+    } catch {
+      parsed.assumptions.push('손글씨를 큰 모델로 다시 읽지 못해 기본 결과를 씀');
+    }
+  }
+
+  const { tasks, assumptions, unreadable, transcript } = parsed;
+  const readBack = imageData ? readBackText(transcript) : '';
+  return { message: buildMessage(tasks, assumptions, unreadable) + readBack, tasks, assumptions, unreadable, transcript, escalated };
 }

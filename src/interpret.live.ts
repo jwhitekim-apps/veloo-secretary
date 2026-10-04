@@ -11,7 +11,8 @@ for (const line of readFileSync(new URL('../.env.local', import.meta.url), 'utf8
   const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
   if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, '');
 }
-const generateJson = createGenerateJson({ apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL });
+// 모델을 바꿔 시험하려면: GEMINI_MODEL=<모델> npm run test:live
+const generateJson = createGenerateJson({ apiKey: env.GEMINI_API_KEY.trim(), model: (process.env.GEMINI_MODEL ?? env.GEMINI_MODEL).trim() });
 
 // 2026-10-07 수요일 12:00 KST
 const now = new Date('2026-10-07T03:00:00Z');

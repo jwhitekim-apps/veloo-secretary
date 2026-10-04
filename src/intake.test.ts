@@ -170,3 +170,53 @@ test('authentication is still required for ?async=1', async () => {
   assert.equal(res.status, 401);
   assert.equal(tasks.length, 0);
 });
+
+test('?format=text answers with plain text instead of JSON, for success and for errors', async () => {
+  const { deps, tasks, release } = asyncDeps();
+  release();
+
+  const ack = await handleIntake(asyncPost('?async=1&format=text', { text: 'x' }), deps);
+  assert.equal(ack.status, 202);
+  assert.match(ack.headers.get('content-type') ?? '', /^text\/plain/);
+  assert.equal(await ack.text(), '접수했어요. 결과는 카톡으로 보내 드릴게요.');
+  await Promise.all(tasks);
+
+  const sync = await handleIntake(asyncPost('?format=text', { text: 'x' }), deps);
+  assert.equal(await sync.text(), '추가했어요 1건: 랩미팅(10/13).');
+
+  const bad = await handleIntake(asyncPost('?format=text', {}), { ...deps, interpret: async () => ({ error: 'text or image is required' }) });
+  assert.equal(bad.status, 400);
+  assert.equal(await bad.text(), '오류: text or image is required');
+});
+
+test('?format=text also applies to authentication failures, and JSON stays the default', async () => {
+  const { deps } = asyncDeps();
+  const denied = await handleIntake(new Request('http://localhost/api/intake?format=text', { method: 'POST', body: '{}' }), deps);
+  assert.equal(denied.status, 401);
+  assert.equal(await denied.text(), '오류: unauthorized');
+
+  const json = await handleIntake(new Request('http://localhost/api/intake', { method: 'POST', body: '{}' }), deps);
+  assert.match(json.headers.get('content-type') ?? '', /application\/json/);
+  assert.deepEqual(await json.json(), { error: 'unauthorized' });
+});
+
+test('?quality=high reaches interpretation for both synchronous and background runs; anything else is ignored', async () => {
+  const seen: (string | undefined)[] = [];
+  const tasks: Promise<unknown>[] = [];
+  const deps = {
+    secret: 's3cret',
+    interpret: async (_: unknown, o: { dryRun: boolean; quality?: 'high' }) => { seen.push(o.quality); return { message: 'ok' }; },
+    validate: () => null,
+    runInBackground: (t: Promise<unknown>) => { tasks.push(t); },
+    notify: async () => {},
+  };
+  const headers = { authorization: 'Bearer s3cret' };
+  const send = (q: string) => handleIntake(new Request(`http://localhost/api/intake${q}`, { method: 'POST', headers, body: '{"text":"x"}' }), deps);
+  await send('?quality=high');
+  await send('?async=1&quality=high');
+  await Promise.all(tasks);
+  await send('');
+  await send('?quality=low');
+  await send('?quality=HIGH');
+  assert.deepEqual(seen, ['high', 'high', undefined, undefined, undefined]);
+});
