@@ -1,20 +1,15 @@
-import { timingSafeEqual } from 'node:crypto';
+import { isBearerAuthorized } from './auth.js';
 
 export type IntakeDeps = {
   secret: string;
-  interpret: (input: unknown) => Promise<{ message: string }>;
+  // 입력이 잘못되면 { error }를 돌려주고, 그러면 400으로 응답한다.
+  // dryRun이면 해석만 하고 아무것도 저장하지 않는다(?dry=1).
+  interpret: (input: unknown, options: { dryRun: boolean }) => Promise<{ message: string } | { error: string }>;
 };
-
-function isAuthorized(request: Request, secret: string): boolean {
-  if (!secret) return false;
-  const given = Buffer.from(request.headers.get('authorization') ?? '');
-  const expected = Buffer.from(`Bearer ${secret}`);
-  return given.length === expected.length && timingSafeEqual(given, expected);
-}
 
 // 인증이 통과하기 전에는 본문을 읽지도, 해석 단계를 부르지도 않는다.
 export async function handleIntake(request: Request, deps: IntakeDeps): Promise<Response> {
-  if (!isAuthorized(request, deps.secret)) {
+  if (!isBearerAuthorized(request, deps.secret)) {
     return Response.json({ error: 'unauthorized' }, { status: 401 });
   }
   if (request.method !== 'POST') {
@@ -28,5 +23,9 @@ export async function handleIntake(request: Request, deps: IntakeDeps): Promise<
     return Response.json({ error: 'invalid json' }, { status: 400 });
   }
 
-  return Response.json(await deps.interpret(input));
+  const dryRun = new URL(request.url).searchParams.get('dry') === '1';
+  const result = await deps.interpret(input, { dryRun });
+  return 'error' in result
+    ? Response.json(result, { status: 400 })
+    : Response.json(result);
 }

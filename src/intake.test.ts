@@ -59,6 +59,23 @@ test('returns 400 for invalid JSON after authentication', async () => {
   assert.equal(calls.length, 0);
 });
 
+test('?dry=1 reaches interpretation as a dry run, and its absence means a normal run', async () => {
+  const seen: boolean[] = [];
+  const deps = { secret: 's3cret', interpret: async (_: unknown, o: { dryRun: boolean }) => { seen.push(o.dryRun); return { message: 'ok' }; } };
+  const headers = { authorization: 'Bearer s3cret' };
+  await handleIntake(new Request('http://localhost/api/intake?dry=1', { method: 'POST', headers, body: '{}' }), deps);
+  await handleIntake(new Request('http://localhost/api/intake', { method: 'POST', headers, body: '{}' }), deps);
+  await handleIntake(new Request('http://localhost/api/intake?dry=0', { method: 'POST', headers, body: '{}' }), deps);
+  assert.deepEqual(seen, [true, false, false]);
+});
+
+test('answers 400 when interpretation reports an input error', async () => {
+  const deps = { secret: 's3cret', interpret: async () => ({ error: 'text or image is required' }) };
+  const res = await handleIntake(post({ authorization: 'Bearer s3cret' }, '{}'), deps);
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: 'text or image is required' });
+});
+
 test('returns 405 for non-POST requests with a correct secret', async () => {
   const { calls, deps } = setup();
   const req = new Request('http://localhost/api/intake', {

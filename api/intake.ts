@@ -1,15 +1,14 @@
-import { requireEnv } from '../src/config.ts';
-import { handleIntake } from '../src/intake.ts';
+import { requireEnv } from '../src/config.js';
+import { handleIntake } from '../src/intake.js';
+import { createIntakeHandler } from '../src/wire.js';
 
 export default {
   fetch(request: Request): Promise<Response> {
     const { INTAKE_SECRET } = requireEnv(process.env, ['INTAKE_SECRET']);
     return handleIntake(request, {
       secret: INTAKE_SECRET,
-      // 해석 단계는 task 3.2에서 연결한다. 그 전에는 배포하지 않는다.
-      interpret: async () => {
-        throw new Error('interpretation is not implemented yet (task 3.2)');
-      },
+      // 나머지 설정은 인증이 통과한 뒤에 확인한다. 인증 없는 요청에는 설정 오류가 드러나지 않는다.
+      interpret: (input, options) => createIntakeHandler(process.env)(input, options),
     });
   },
 };
