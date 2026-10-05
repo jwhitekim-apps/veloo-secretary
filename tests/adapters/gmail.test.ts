@@ -97,3 +97,43 @@ test('the client has no send, modify, or delete operation', () => {
   const gmail = createGmail({ ...cfg, fetch: fakeGoogle({}).impl }) as unknown as Record<string, unknown>;
   assert.deepEqual(Object.keys(gmail).sort(), ['readBody', 'search']);
 });
+
+const withSubject = (subject: string) => ({ headers: [{ name: 'Subject', value: subject }] });
+
+test('search reports the subject of the first mail in the thread, even when a follow-up carries a different prefix', async () => {
+  const g = fakeGoogle({
+    '/messages?q=': { messages: [{ id: 'orig' }, { id: 'follow' }] },
+    '/messages/orig?format=metadata': { threadId: 't1', payload: withSubject('학회 투고 안내') },
+    '/messages/follow?format=metadata': { threadId: 't1', payload: withSubject('[추가 사항 확인 요망] 학회 투고 안내') },
+    '/threads/t1?format=metadata': {
+      messages: [
+        { internalDate: '2000', payload: withSubject('[추가 사항 확인 요망] 학회 투고 안내') },
+        { internalDate: '1000', payload: withSubject('학회 투고 안내') },
+      ],
+    },
+  });
+  const metas = await createGmail({ ...cfg, fetch: g.impl }).search('x');
+  assert.deepEqual(metas.map((m) => m.threadSubject), ['학회 투고 안내', '학회 투고 안내']);
+  assert.equal(metas[1].subject, '[추가 사항 확인 요망] 학회 투고 안내');
+});
+
+test('a thread is looked up once however many of its mails matched', async () => {
+  const g = fakeGoogle({
+    '/messages?q=': { messages: [{ id: 'a' }, { id: 'b' }] },
+    '/messages/a?format=metadata': { threadId: 't1', payload: withSubject('A') },
+    '/messages/b?format=metadata': { threadId: 't1', payload: withSubject('B') },
+    '/threads/t1?format=metadata': { messages: [{ internalDate: '1', payload: withSubject('A') }] },
+  });
+  await createGmail({ ...cfg, fetch: g.impl }).search('x');
+  assert.equal(g.calls.filter((u) => u.includes('/threads/')).length, 1);
+});
+
+test('when the thread lookup fails the mail is still returned and just has no thread subject', async () => {
+  const g = fakeGoogle({
+    '/messages?q=': { messages: [{ id: 'a' }] },
+    '/messages/a?format=metadata': { threadId: 't9', payload: withSubject('A') },
+  });
+  const [m] = await createGmail({ ...cfg, fetch: g.impl }).search('x');
+  assert.equal(m.subject, 'A');
+  assert.equal('threadSubject' in m, false);
+});

@@ -1,4 +1,4 @@
-type MailMeta = { id: string; subject: string; from: string; date: string; snippet: string };
+type MailMeta = { id: string; subject: string; from: string; date: string; snippet: string; threadSubject?: string };
 type Candidate = { name: string; deadline: string; priority: string; memo: string };
 type Interpretation =
   | { tasks: Candidate[]; assumptions: string[]; unreadable: string[] }
@@ -100,24 +100,28 @@ export async function triageMail(deps: MailDeps): Promise<MailTriageResult> {
       continue;
     }
     result.stats.important += 1;
+    // 보고에는 스레드에서 처음 받은 메일의 제목을 쓴다. 답장이나 후속 메일이 다른 이름으로 따로 보이지 않게 하려는 것이다.
+    const title = meta.threadSubject || meta.subject;
     try {
       const body = await deps.gmail.readBody(meta.id);
       const text = `메일 제목: ${meta.subject}\n보낸 사람: ${meta.from}\n받은 날짜: ${meta.date}\n\n${body}`;
       const interpreted = await deps.interpret(text);
       if ('error' in interpreted) {
-        result.uncertain.push(`읽을 수 없는 메일: ${meta.subject}`);
+        result.uncertain.push(`읽을 수 없는 메일: ${title}`);
         continue;
       }
       const sure = interpreted.tasks.filter((t) => t.deadline);
       for (const t of interpreted.tasks.filter((t) => !t.deadline)) {
-        result.uncertain.push(`마감일 불확실: ${meta.subject} — ${t.name}`);
+        result.uncertain.push(`마감일 불확실: ${title} — ${t.name}`);
       }
-      for (const u of interpreted.unreadable) result.uncertain.push(`${meta.subject}: ${u}`);
-      if (sure.length) result.candidates.push({ mailId: meta.id, subject: meta.subject, tasks: sure });
+      for (const u of interpreted.unreadable) result.uncertain.push(`${title}: ${u}`);
+      if (sure.length) result.candidates.push({ mailId: meta.id, subject: title, tasks: sure });
       else if (interpreted.tasks.length === 0) result.notImportantIds.push(meta.id);
     } catch (e) {
-      result.failures.push(`메일 처리 실패(${meta.subject}): ${errorText(e)}`);
+      result.failures.push(`메일 처리 실패(${title}): ${errorText(e)}`);
     }
   }
+  // 같은 스레드의 메일에서 똑같은 항목이 나오면 한 번만 보인다.
+  result.uncertain = [...new Set(result.uncertain)];
   return result;
 }

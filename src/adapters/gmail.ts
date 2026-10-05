@@ -1,5 +1,6 @@
 // Gmail 읽기 전용 클라이언트. 쓰기·발송 메서드는 일부러 만들지 않았고, 권한(gmail.readonly)도 읽기뿐이다.
-export type MailMeta = { id: string; subject: string; from: string; date: string; snippet: string };
+// threadSubject: 같은 스레드에서 가장 먼저 받은 메일의 제목. 답장·후속 메일이 원래 메일과 같은 이름으로 보이게 하려고 쓴다.
+export type MailMeta = { id: string; subject: string; from: string; date: string; snippet: string; threadSubject?: string };
 
 type Part = { mimeType?: string; body?: { data?: string }; parts?: Part[] };
 
@@ -80,13 +81,38 @@ export function createGmail(config: {
     async search(query: string, max = 25): Promise<MailMeta[]> {
       const list = (await get(`/messages?q=${encodeURIComponent(query)}&maxResults=${max}`)) as { messages?: { id: string }[] };
       const metas: MailMeta[] = [];
+      const firstSubjects = new Map<string, Promise<string>>();
+      // 스레드에서 가장 먼저 받은 메일의 제목. 조회에 실패하면 제목만 못 얻는 것이라 그 메일 자신의 제목을 쓴다.
+      const firstSubjectOf = (threadId: string): Promise<string> => {
+        let found = firstSubjects.get(threadId);
+        if (!found) {
+          found = get(`/threads/${threadId}?format=metadata&metadataHeaders=Subject`)
+            .then((t) => {
+              const messages = ((t as { messages?: { internalDate?: string; payload?: { headers?: { name: string; value: string }[] } }[] }).messages ?? [])
+                .slice()
+                .sort((a, b) => Number(a.internalDate ?? 0) - Number(b.internalDate ?? 0));
+              return messages[0]?.payload?.headers?.find((h) => h.name.toLowerCase() === 'subject')?.value ?? '';
+            })
+            .catch(() => '');
+          firstSubjects.set(threadId, found);
+        }
+        return found;
+      };
       for (const { id } of list.messages ?? []) {
         const m = (await get(
           `/messages/${id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`,
-        )) as { snippet?: string; payload?: { headers?: { name: string; value: string }[] } };
+        )) as { threadId?: string; snippet?: string; payload?: { headers?: { name: string; value: string }[] } };
         const header = (name: string) =>
           m.payload?.headers?.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value ?? '';
-        metas.push({ id, subject: header('Subject'), from: header('From'), date: header('Date'), snippet: m.snippet ?? '' });
+        const threadSubject = m.threadId ? await firstSubjectOf(m.threadId) : '';
+        metas.push({
+          id,
+          subject: header('Subject'),
+          from: header('From'),
+          date: header('Date'),
+          snippet: m.snippet ?? '',
+          ...(threadSubject ? { threadSubject } : {}),
+        });
       }
       return metas;
     },

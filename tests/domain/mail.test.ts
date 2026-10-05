@@ -125,3 +125,20 @@ test('when nothing matches the keywords the model is never called', async () => 
   assert.equal(calls.judge.length, 0);
   assert.deepEqual(result.stats, { found: 0, fresh: 0, important: 0 });
 });
+
+test('a follow-up mail is reported under the subject of the first mail in its thread, and repeated lines appear once', async () => {
+  const original = { ...meta('a', '학회 투고 안내'), threadSubject: '학회 투고 안내' };
+  const followUp = { ...meta('b', '[추가 사항 확인 요망] 학회 투고 안내'), threadSubject: '학회 투고 안내' };
+  const unclear = { tasks: [{ name: '확장논문 투고', deadline: '', priority: 'normal', memo: '' }], assumptions: [], unreadable: [] };
+  const { deps } = setup({ metas: [original, followUp], verdicts: { a: true, b: true }, interpreted: { a: unclear, b: unclear } });
+  const result = await triageMail(deps);
+  assert.deepEqual(result.uncertain, ['마감일 불확실: 학회 투고 안내 — 확장논문 투고']);
+});
+
+test('a candidate carries the thread subject, while the interpreter still sees the mail\'s own subject', async () => {
+  const followUp = { ...meta('b', '[추가 사항 확인 요망] 학회 투고 안내'), threadSubject: '학회 투고 안내' };
+  const { deps, calls } = setup({ metas: [followUp], verdicts: { b: true } });
+  const result = await triageMail(deps);
+  assert.equal(result.candidates[0].subject, '학회 투고 안내');
+  assert.match(calls.interpret[0], /메일 제목: \[추가 사항 확인 요망\] 학회 투고 안내/);
+});
