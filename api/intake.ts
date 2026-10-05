@@ -1,7 +1,7 @@
 import { waitUntil } from '@vercel/functions';
 import { requireEnv } from '../src/config.js';
-import { handleIntake } from '../src/intake.js';
-import { validateInput } from '../src/interpret.js';
+import { handleIntake } from '../src/http/intake.js';
+import { validateInput } from '../src/domain/interpret.js';
 import { createIntakeHandler, createIntakeNotifier } from '../src/wire.js';
 
 export default {

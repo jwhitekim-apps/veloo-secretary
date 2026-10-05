@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createMemoryStore } from './store.ts';
-import { createVelooClient } from './veloo.ts';
+import { createVelooClient, toVelooPriority } from './veloo.ts';
 
 // 벨루 백엔드(app/auth.py, app/todo/core/routers/todos.py)의 모양을 흉내 낸 가짜 서버
 function startFakeVeloo() {
   const tasks: Record<string, unknown>[] = [];
-  const state = { logins: 0, validToken: '', nextId: 1 };
+  const state = { logins: 0, validToken: '', nextId: 1, weeklyQuery: '' };
   const server: Server = createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on('data', (c) => chunks.push(c));
@@ -26,6 +26,10 @@ function startFakeVeloo() {
       }
       if (req.headers.cookie !== `access_token=${state.validToken}` || !state.validToken) {
         return json(401, { error: 'session expired' });
+      }
+      if (req.url?.startsWith('/todo/api/reviews/weekly') && req.method === 'GET') {
+        state.weeklyQuery = decodeURIComponent(req.url.split('week_start=')[1] ?? '');
+        return json(200, { completed: 5, created: 9, completion_rate: 0.556, overdue: [{ id: 1 }, { id: 2 }, { id: 3 }], by_priority: {} });
       }
       if (req.url === '/todo/api/todos' && req.method === 'GET') return json(200, tasks);
       if (req.url === '/todo/api/todos' && req.method === 'POST') {
@@ -106,5 +110,37 @@ test('an unreachable server surfaces as an error instead of being swallowed', as
 
 test('the client exposes no update or delete operation', () => {
   const veloo = createVelooClient({ baseUrl: 'http://127.0.0.1:9', ...credentials }) as unknown as Record<string, unknown>;
-  assert.deepEqual(Object.keys(veloo).sort(), ['createTask', 'listTasks']);
+  assert.deepEqual(Object.keys(veloo).sort(), ['createTask', 'listTasks', 'weeklyReview']);
+});
+
+test('priorities are translated to Veloo\'s own values before being sent', async () => {
+  const fake = await startFakeVeloo();
+  try {
+    const veloo = createVelooClient({ baseUrl: fake.url, ...credentials });
+    for (const priority of ['high', 'normal', 'low', 'mid', 'urgent', 'anything-else']) {
+      await veloo.createTask({ name: priority, memo: '', priority, deadline: '' });
+    }
+    const sent = Object.fromEntries(fake.tasks.map((t) => [t.name as string, t.priority]));
+    assert.deepEqual(sent, { high: 'urgent', normal: 'normal', low: 'normal', mid: 'mid', urgent: 'urgent', 'anything-else': 'normal' });
+  } finally {
+    fake.close();
+  }
+});
+
+test('toVelooPriority only ever returns a value Veloo understands', () => {
+  for (const p of ['high', 'low', 'normal', 'mid', 'urgent', '', 'x']) {
+    assert.ok(['urgent', 'mid', 'normal'].includes(toVelooPriority(p)), p);
+  }
+});
+
+test('the weekly review is read with an encoded week start and reduced to three counts', async () => {
+  const fake = await startFakeVeloo();
+  try {
+    const veloo = createVelooClient({ baseUrl: fake.url, ...credentials });
+    const review = await veloo.weeklyReview('2026-09-28T00:00:00+09:00');
+    assert.deepEqual(review, { completed: 5, created: 9, overdue: 3 });
+    assert.equal(fake.state.weeklyQuery, '2026-09-28T00:00:00+09:00', 'the + sign survives encoding');
+  } finally {
+    fake.close();
+  }
 });

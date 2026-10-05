@@ -1,7 +1,7 @@
 // 카카오 토큰 복구 점검(task 1.4, 6.3): 만료된 액세스 토큰으로 시작해도 갱신 후 전송에 성공하는지 확인한다.
 // 본인 카톡으로 메시지 한 통이 실제로 전송된다.
-import { createKakao } from '../src/kakao.js';
-import { createMemoryStore } from '../src/store.js';
+import { createKakao } from '../src/adapters/kakao.js';
+import { createMemoryStore } from '../src/adapters/store.js';
 import { loadEnvLocal } from './load-env.js';
 
 const env = loadEnvLocal();

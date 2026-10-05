@@ -6,8 +6,8 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createGenerateJson } from '../src/gemini.js';
-import { interpretInput } from '../src/interpret.js';
+import { createGenerateJson } from '../src/adapters/gemini.js';
+import { interpretInput } from '../src/domain/interpret.js';
 import { loadEnvLocal } from './load-env.js';
 
 const args = process.argv.slice(2);

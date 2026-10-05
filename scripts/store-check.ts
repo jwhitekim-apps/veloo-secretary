@@ -1,6 +1,6 @@
 // 저장소 점검: 실제 Supabase에 기록·중복 판별·조회·상태 저장을 시험하고, 시험 데이터를 지운다.
 // 실행: npm run store:check
-import { createSupabaseStore } from '../src/store.js';
+import { createSupabaseStore } from '../src/adapters/store.js';
 import { loadEnvLocal } from './load-env.js';
 
 const env = loadEnvLocal();

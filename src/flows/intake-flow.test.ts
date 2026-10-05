@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore } from './store.ts';
-import { syncCandidates, type Candidate } from './ledger.ts';
+import { createMemoryStore } from '../adapters/store.ts';
+import { syncCandidates, type Candidate } from '../domain/ledger.ts';
 import { processIntake } from './intake-flow.ts';
-import type { InterpretResult } from './interpret.ts';
+import type { InterpretResult } from '../domain/interpret.ts';
 
 type VTask = { id: number; name: string; memo: string; priority: string; deadline: string; done: boolean };
 
@@ -36,7 +36,7 @@ test('the task is written to Veloo and the reply says what was added', async () 
   assert.ok('message' in result);
   assert.match(result.message, /^추가했어요 1건: 랩미팅\(10\/13, 15:00\)\./);
   assert.equal(tasks.length, 1);
-  assert.match(tasks[0].memo, /\[비서:intake:req1#0\]/);
+  assert.equal(tasks[0].memo, '15:00', 'only the content is written; no internal marker');
 });
 
 test('assumptions and unreadable parts are appended to the reply', async () => {

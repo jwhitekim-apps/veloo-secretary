@@ -1,13 +1,24 @@
-import type { Candidate, Source, SyncResult } from './ledger.js';
-import type { MailTriageResult } from './mail.js';
-import { buildReport, classifyOpenTasks } from './report.js';
-import type { Store } from './store.js';
+import { lastWeekStart, mailDeadlines, pickTopTasks, rankTasks, staleTasks } from '../domain/brief.js';
+import { trackNewPapers, type Paper } from '../domain/papers.js';
+import type { Candidate, Source, SyncResult } from '../domain/ledger.js';
+import type { MailTriageResult } from '../domain/mail.js';
+import { buildReport, classifyOpenTasks } from '../domain/report.js';
+import type { Store } from '../adapters/store.js';
 
 export type DailyDeps = {
   now: Date;
   timeZone?: string;
   store: Store;
-  veloo: { listTasks(): Promise<{ name: string; memo: string; deadline: string; done: boolean }[]> };
+  veloo: {
+    listTasks(): Promise<
+      { id: number; name: string; memo: string; priority: string; deadline: string; done: boolean; created_at?: string }[]
+    >;
+    weeklyReview?(weekStart: string): Promise<{ completed: number; created: number; overdue: number }>;
+  };
+  // 오늘 먼저 할 일 3개를 고르고 이유를 쓰는 모델 호출. 없거나 실패하면 규칙 순위로 대신한다.
+  generateJson?: (request: { prompt: string; schema: object }) => Promise<unknown>;
+  // 폴리오 논문 목록(읽기 전용). 없으면 폴리오 줄을 만들지 않는다.
+  folio?: { recentPapers(): Promise<Paper[]> } | null;
   kakao: { send(text: string): Promise<void> };
   mail: (() => Promise<MailTriageResult>) | null;
   sync: (candidates: Candidate[], source: Source) => Promise<SyncResult>;
@@ -28,6 +39,20 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 function localDate(now: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
+
+// 처리 기록에서 한 종류(kind)로 만든 태스크의 번호를 모은다. 읽지 못하면 비어 있는 것으로 본다.
+async function readTaskIds(store: Store, kind: string): Promise<Set<number>> {
+  try {
+    const ids = new Set<number>();
+    for (const e of await store.list(kind, '1970-01-01T00:00:00.000Z')) {
+      const id = (e.data as { taskId?: unknown } | null)?.taskId;
+      if (typeof id === 'number') ids.add(id);
+    }
+    return ids;
+  } catch {
+    return new Set();
+  }
 }
 
 type Data = { name?: string; deadline?: string; taskId?: number; message?: string; currentDeadline?: string; proposedDeadline?: string };
@@ -86,9 +111,12 @@ export async function runDaily(deps: DailyDeps): Promise<DailyOutcome> {
 
   // 2) 벨루의 남은 일(오늘·임박·밀린 일·마감 없음은 3번에서 나눈다)
   const today = localDate(deps.now, timeZone);
-  let openTasks: { name: string; memo: string; deadline: string; done: boolean }[] = [];
+  let openTasks: Awaited<ReturnType<DailyDeps['veloo']['listTasks']>> = [];
+  // 벨루에 지금 있는 태스크 번호. 읽지 못하면 null이고, 그때는 처리 기록을 걸러 낼 수 없다.
+  let liveIds: Set<number> | null = null;
   try {
     openTasks = await deps.veloo.listTasks();
+    liveIds = new Set(openTasks.map((t) => t.id));
   } catch (e) {
     await fail(`벨루 읽기 실패: ${errorText(e)}`);
   }
@@ -100,15 +128,18 @@ export async function runDaily(deps: DailyDeps): Promise<DailyOutcome> {
   let newestMs = deps.now.getTime();
   try {
     const written = [...(await store.list('mail', since)), ...(await store.list('intake', since))];
+    // 처리 기록은 벨루와 따로 남아 있어서, 사용자가 벨루에서 지운 태스크도 기록에는 있다.
+    // 지금 벨루에 없는 태스크는 보고하지 않는다(벨루를 읽지 못했을 때만 걸러 내지 못한다).
+    const stillThere = (taskId: number | undefined) => liveIds === null || (typeof taskId === 'number' && liveIds.has(taskId));
     created = written
       .map((e) => e.data as Data)
-      .filter((d) => typeof d?.taskId === 'number')
+      .filter((d) => typeof d?.taskId === 'number' && stillThere(d.taskId))
       .map((d) => ({ name: d.name ?? '', deadline: d.deadline ?? '' }));
     const proposalEntries = await store.list('proposal', since);
-    proposals = proposalEntries.map((e) => {
-      const d = e.data as Data;
-      return { name: d.name ?? '', currentDeadline: d.currentDeadline ?? '', proposedDeadline: d.proposedDeadline ?? '' };
-    });
+    proposals = proposalEntries
+      .map((e) => e.data as Data)
+      .filter((d) => stillThere(d.taskId))
+      .map((d) => ({ name: d.name ?? '', currentDeadline: d.currentDeadline ?? '', proposedDeadline: d.proposedDeadline ?? '' }));
     const failureEntries = await store.list('failure', since);
     storedFailures = failureEntries.map((e) => (e.data as Data).message ?? '');
     for (const e of [...written, ...proposalEntries, ...failureEntries]) {
@@ -118,18 +149,48 @@ export async function runDaily(deps: DailyDeps): Promise<DailyOutcome> {
     failures.push(`처리 내역 읽기 실패: ${errorText(e)}`);
   }
   created.push(...preview);
-  // 이번 보고의 "추가" 항목은 다른 구역에 중복해서 보여 주지 않는다.
-  const sections = classifyOpenTasks(openTasks, today, new Set(created.map((c) => c.name.replace(' (예정, 저장 안 함)', ''))));
+
+  // 4) 브리핑 재료: 오늘 먼저 할 일, 방치된 일, 메일 마감, 지난주 통계, 폴리오 새 논문
+  const top = await pickTopTasks(rankTasks(openTasks, today, timeZone), today, deps.generateJson);
+  const stale = staleTasks(openTasks, today, timeZone);
+  const mailDeadlineList = mailDeadlines(openTasks, today, await readTaskIds(store, 'mail'));
+
+  let weekly: { completed: number; created: number; overdue: number } | null = null;
+  if (deps.veloo.weeklyReview && liveIds !== null) {
+    try {
+      weekly = await deps.veloo.weeklyReview(lastWeekStart(today));
+    } catch (e) {
+      notes.push(`지난주 통계를 읽지 못함(${errorText(e)})`);
+    }
+  }
+
+  let papers: { count: number; titles: string[] } | null = null;
+  if (deps.folio) {
+    try {
+      papers = await trackNewPapers(await deps.folio.recentPapers(), store, deps.now, { dryRun: deps.dryRun });
+    } catch (e) {
+      notes.push(`폴리오를 읽지 못함(${errorText(e)})`);
+    }
+  }
+
+  // 이미 다른 줄로 보여 준 태스크("추가", "먼저")는 다른 구역에 되풀이하지 않는다. 오늘 마감은 항상 보여 준다.
+  const createdNames = new Set(created.map((c) => c.name.replace(' (예정, 저장 안 함)', '')));
+  const sections = classifyOpenTasks(openTasks, today, createdNames, undefined, new Set(top.map((t) => t.name)));
   const allFailures = [...new Set([...failures, ...storedFailures].filter(Boolean))];
 
   const messages = buildReport(
     {
       now: deps.now,
       timeZone,
+      top,
       tasksToday: sections.today,
       upcoming: sections.upcoming,
       overdue: sections.overdue,
       undated: sections.undated,
+      stale,
+      mailDeadlines: mailDeadlineList,
+      weekly,
+      papers,
       created,
       proposals,
       uncertain,

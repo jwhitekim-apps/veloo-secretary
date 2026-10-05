@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore } from './store.ts';
+import { createMemoryStore } from '../adapters/store.ts';
 import { isAssistantTask, syncCandidates, type Candidate } from './ledger.ts';
 
 type Task = { id: number; name: string; memo: string; priority: string; deadline: string; done: boolean };
@@ -35,20 +35,34 @@ const cand = (over: Partial<Candidate> = {}): Candidate => ({
 });
 const src = { kind: 'mail', id: 'm1' };
 
-test('creates tasks whose memo carries the assistant marker and the source id', async () => {
+test('the memo holds only the content: no internal marker is written to Veloo', async () => {
   const f = fakeVeloo();
   const result = await syncCandidates([cand({ memo: '23:59' })], src, { veloo: f.veloo, store: createMemoryStore() });
   assert.equal(result.created.length, 1);
-  const memo = f.tasks[0].memo;
-  assert.match(memo, /^23:59\n\[비서:mail:m1#0\]$/);
-  assert.equal(isAssistantTask(f.tasks[0]), true);
+  assert.equal(f.tasks[0].memo, '23:59');
   assert.equal(f.tasks[0].deadline, '2026-11-20');
 });
 
-test('a memo-less candidate still gets the marker', async () => {
+test('a memo-less candidate leaves the memo empty', async () => {
   const f = fakeVeloo();
   await syncCandidates([cand()], src, { veloo: f.veloo, store: createMemoryStore() });
-  assert.equal(f.tasks[0].memo, '[비서:mail:m1#0]');
+  assert.equal(f.tasks[0].memo, '');
+});
+
+test('no task ever receives the legacy marker text', async () => {
+  const f = fakeVeloo();
+  await syncCandidates([cand({ name: 'A' }), cand({ name: 'B', memo: '10:00' })], src, { veloo: f.veloo, store: createMemoryStore() });
+  assert.ok(f.tasks.every((t) => !t.memo.includes('[비서:')));
+});
+
+test('a task recorded in the history is recognised as the assistant\'s even though its memo has no marker', async () => {
+  const f = fakeVeloo();
+  const store = createMemoryStore();
+  await syncCandidates([cand({ name: '랩미팅', deadline: '2026-10-06' })], { kind: 'intake', id: 'req1' }, { veloo: f.veloo, store });
+  // 같은 이름이지만 마감이 다르면, 사용자가 쓴 태스크가 아니므로 수정 제안이 아니라 새 일정으로 만든다.
+  const result = await syncCandidates([cand({ name: '랩미팅', deadline: '2026-10-13' })], { kind: 'intake', id: 'req2' }, { veloo: f.veloo, store });
+  assert.equal(result.proposed.length, 0);
+  assert.equal(result.created.length, 1);
 });
 
 test('the same source is processed once even when synced twice', async () => {
@@ -160,13 +174,13 @@ test('a history write failure after creating is surfaced as a warning, not as a 
   assert.match(result.warnings[0], /처리 이력을 저장하지 못함/);
 });
 
-test('without any processing history, a Veloo task that already carries the source marker blocks a duplicate', async () => {
+test('with no processing history at all, an identical existing task still blocks a duplicate', async () => {
   const f = fakeVeloo();
   await syncCandidates([cand()], src, { veloo: f.veloo, store: createMemoryStore() });
-  // 저장소가 새로 비어 있는 상황(예: 서버리스 호출이 바뀜)에서 같은 메일을 다시 처리한다.
+  // 저장소가 비어 있는 상황(예: 저장소를 쓰지 않는 구성)에서 같은 메일을 다시 처리한다. 이름과 마감이 같으면 새로 만들지 않는다.
   const again = await syncCandidates([cand()], src, { veloo: f.veloo, store: createMemoryStore() });
   assert.equal(f.calls.create, 1);
-  assert.deepEqual(again.skipped.map((s) => s.reason), ['already-processed']);
+  assert.deepEqual(again.skipped.map((s) => s.reason), ['exists']);
 });
 
 test('re-sending the same input (e.g. after a shortcut error) does not create a second identical task', async () => {

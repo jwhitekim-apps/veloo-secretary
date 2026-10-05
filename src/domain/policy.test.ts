@@ -43,7 +43,7 @@ test('a confirm action records a proposal and performs no write', async () => {
 });
 
 test('docs/delegation.md lists exactly the actions in ACTION_TIERS, under the right tier', () => {
-  const doc = readFileSync(new URL('../docs/delegation.md', import.meta.url), 'utf8');
+  const doc = readFileSync(new URL('../../docs/delegation.md', import.meta.url), 'utf8');
   const documented: Record<string, string[]> = {};
   let current: string | null = null;
   for (const line of doc.split('\n')) {

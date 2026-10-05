@@ -1,11 +1,11 @@
 // 메일 선별 시험 실행(task 5.4): 실제 Gmail을 읽고 Gemini로 판단하지만, 벨루에 쓰지도 카톡을 보내지도 않는다.
 // 처리 이력도 남기지 않으므로 몇 번이든 다시 돌려 볼 수 있다. 메일 내용이 Gemini로 전송된다는 점에 유의.
 // 실행: npm run mail:dryrun [-- --days 30]
-import { createGenerateJson } from '../src/gemini.js';
-import { createGmail } from '../src/gmail.js';
-import { interpretInput } from '../src/interpret.js';
-import { triageMail } from '../src/mail.js';
-import { createMemoryStore } from '../src/store.js';
+import { createGenerateJson } from '../src/adapters/gemini.js';
+import { createGmail } from '../src/adapters/gmail.js';
+import { interpretInput } from '../src/domain/interpret.js';
+import { triageMail } from '../src/domain/mail.js';
+import { createMemoryStore } from '../src/adapters/store.js';
 import { loadEnvLocal } from './load-env.js';
 
 const env = loadEnvLocal();

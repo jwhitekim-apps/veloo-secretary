@@ -3,8 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createGenerateJson } from './gemini.ts';
-import { interpretInput } from './interpret.ts';
+import { createGenerateJson } from '../src/adapters/gemini.ts';
+import { interpretInput } from '../src/domain/interpret.ts';
 
 const env: Record<string, string> = {};
 for (const line of readFileSync(new URL('../.env.local', import.meta.url), 'utf8').split('\n')) {

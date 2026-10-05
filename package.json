@@ -4,12 +4,13 @@
   "type": "module",
   "scripts": {
     "test": "node --import ./scripts/register-ts-resolver.mjs --test",
-    "test:live": "node --import ./scripts/register-ts-resolver.mjs --test --test-concurrency=5 src/interpret.live.ts",
+    "test:live": "node --import ./scripts/register-ts-resolver.mjs --test --test-concurrency=5 scripts/interpret.live.ts",
     "typecheck": "tsc -p tsconfig.check.json",
     "gmail:check": "node --import ./scripts/register-ts-resolver.mjs scripts/gmail-check.ts",
     "mail:dryrun": "node --import ./scripts/register-ts-resolver.mjs scripts/mail-dryrun.ts",
     "store:check": "node --import ./scripts/register-ts-resolver.mjs scripts/store-check.ts",
-    "model:compare": "node --import ./scripts/register-ts-resolver.mjs scripts/model-compare.ts"
+    "model:compare": "node --import ./scripts/register-ts-resolver.mjs scripts/model-compare.ts",
+    "assistant:tasks": "node --import ./scripts/register-ts-resolver.mjs scripts/assistant-tasks.ts"
   },
   "engines": {
     "node": "24.x"

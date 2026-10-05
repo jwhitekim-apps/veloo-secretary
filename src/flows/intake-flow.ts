@@ -1,6 +1,6 @@
-import type { Candidate, Source, SyncResult } from './ledger.js';
-import { describeTask, readBackText } from './interpret.js';
-import type { InterpretResult } from './interpret.js';
+import type { Candidate, Source, SyncResult } from '../domain/ledger.js';
+import { describeTask, readBackText } from '../domain/interpret.js';
+import type { InterpretResult } from '../domain/interpret.js';
 
 export type IntakeFlowDeps = {
   interpret: (input: unknown) => Promise<InterpretResult>;

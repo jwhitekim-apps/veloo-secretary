@@ -2,17 +2,18 @@
 // 테스트하지 않는 얇은 배선이며, 로직은 모두 다른 모듈에 있다.
 import { randomUUID } from 'node:crypto';
 import { requireEnv } from './config.js';
-import { runDaily } from './daily.js';
-import { createGenerateJson } from './gemini.js';
-import { createGmail } from './gmail.js';
-import { processIntake } from './intake-flow.js';
-import { interpretInput } from './interpret.js';
-import { createKakao, KAKAO_TEXT_LIMIT } from './kakao.js';
-import { syncCandidates } from './ledger.js';
-import { triageMail } from './mail.js';
-import { pack } from './report.js';
-import { createMemoryStore, createSupabaseStore } from './store.js';
-import { createVelooClient } from './veloo.js';
+import { runDaily } from './flows/daily.js';
+import { createFolioReader } from './adapters/folio.js';
+import { createGenerateJson } from './adapters/gemini.js';
+import { createGmail } from './adapters/gmail.js';
+import { processIntake } from './flows/intake-flow.js';
+import { interpretInput } from './domain/interpret.js';
+import { createKakao, KAKAO_TEXT_LIMIT } from './adapters/kakao.js';
+import { syncCandidates } from './domain/ledger.js';
+import { triageMail } from './domain/mail.js';
+import { pack } from './domain/report.js';
+import { createMemoryStore, createSupabaseStore } from './adapters/store.js';
+import { createVelooClient } from './adapters/veloo.js';
 
 type Env = Record<string, string | undefined>;
 
@@ -86,6 +87,10 @@ export function createDailyRunner(env: Env) {
     linkUrl: linkUrl(env),
     store,
   });
+  // 폴리오는 같은 Supabase 프로젝트의 folio_papers 테이블을 읽는다. 저장소가 없으면 폴리오 줄을 만들지 않는다.
+  const supabaseUrl = env.SUPABASE_URL?.trim();
+  const supabaseKey = env.SUPABASE_SERVICE_KEY?.trim();
+  const folio = supabaseUrl && supabaseKey ? createFolioReader({ url: supabaseUrl, serviceKey: supabaseKey }) : null;
   const keywords = gmailEnv.MAIL_KEYWORDS.split(',').map((k) => k.trim()).filter(Boolean);
   const lookbackDays = Number(env.MAIL_LOOKBACK_DAYS) || 2;
 
@@ -106,6 +111,8 @@ export function createDailyRunner(env: Env) {
           lookbackDays,
         }),
       sync: (candidates, source) => syncCandidates(candidates, source, { veloo, store }),
+      generateJson,
+      folio,
       limit: KAKAO_TEXT_LIMIT,
       notes: durable ? [] : ['저장소가 설정되지 않아 처리 이력과 갱신된 토큰이 유지되지 않아요'],
       dryRun: options.dryRun,

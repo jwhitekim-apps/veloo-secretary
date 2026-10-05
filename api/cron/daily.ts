@@ -1,4 +1,4 @@
-import { isBearerAuthorized } from '../../src/auth.js';
+import { isBearerAuthorized } from '../../src/http/auth.js';
 import { requireEnv } from '../../src/config.js';
 import { createDailyRunner } from '../../src/wire.js';
 

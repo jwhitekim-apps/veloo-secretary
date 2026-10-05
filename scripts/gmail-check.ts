@@ -1,7 +1,7 @@
 // Gmail 연결 점검(task 1.3): 최근 메일 제목 5개를 읽고, 쓰기·삭제 호출이 권한 오류로 거부되는지 확인한다.
 // 실행: npm run gmail:check          (제목은 앞 8글자만 보여 준다)
 //       npm run gmail:check -- --full (제목 전체를 보여 준다)
-import { createGmail } from '../src/gmail.js';
+import { createGmail } from '../src/adapters/gmail.js';
 import { loadEnvLocal } from './load-env.js';
 
 const env = loadEnvLocal();
