@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildReport, classifyOpenTasks, pack, stripMarker, type ReportInput } from './report.ts';
+import { buildReport, classifyOpenTasks, pack, stripMarker, type ReportInput } from '../../src/domain/report.ts';
 
 const NOW = new Date('2026-10-07T22:00:00Z'); // 한국 시간 10/8 07:00 목요일
 const empty: ReportInput = { now: NOW, tasksToday: [], created: [], proposals: [], uncertain: [], failures: [] };

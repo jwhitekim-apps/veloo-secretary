@@ -29,11 +29,12 @@ src/
   config.ts  env checks (leaf, imports nothing from src)
   wire.ts    the only place that connects everything to real services
 api/         Vercel Functions entry points (thin; call wire.ts)
+tests/       all tests, same folder layout as src/ (+ structure.test.ts)
 scripts/     dev tools that hit real services
 supabase/    assistant.sql
 ```
 
-`src/structure.test.ts` enforces: `domain` imports only `domain`; `http` only `http`; `adapters` only `adapters` at runtime (types may come from `domain`); `flows` only `domain`/`flows` at runtime (types may also come from `adapters`); only `wire.ts` knows every layer. Source files import siblings with `.js` specifiers, never `.ts` (the deployed build breaks otherwise). Every source file except `wire.ts` has an adjacent `.test.ts`.
+`tests/structure.test.ts` enforces: `domain` imports only `domain`; `http` only `http`; `adapters` only `adapters` at runtime (types may come from `domain`); `flows` only `domain`/`flows` at runtime (types may also come from `adapters`); only `wire.ts` knows every layer. Source files import siblings with `.js` specifiers, never `.ts` (the deployed build breaks otherwise). Tests live only under `tests/`, mirroring `src/` (`src/domain/ledger.ts` -> `tests/domain/ledger.test.ts`); `src/` holds no test files, every source file except `wire.ts` has a test, and no test is orphaned. Tests import source with relative paths like `../../src/domain/ledger.ts`.
 
 ## Conventions
 

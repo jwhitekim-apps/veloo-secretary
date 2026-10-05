@@ -1,4 +1,4 @@
-// src의 폴더 구조가 지키려는 규칙을 검사한다. 규칙이 깨지면 구조가 다시 흐트러지고 있다는 신호다.
+// src의 폴더 구조가 지키려는 규칙을 검사한다. 테스트는 모두 tests/에 모으고, src와 같은 폴더 구조를 따른다. 규칙이 깨지면 구조가 다시 흐트러지고 있다는 신호다.
 //
 //   http      요청 처리와 인증        → http만 안다
 //   domain    순수한 규칙과 계산       → domain만 안다 (네트워크, 외부 서비스를 모른다)
@@ -11,7 +11,9 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SRC = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const SRC = join(ROOT, 'src');
+const TESTS = join(ROOT, 'tests');
 
 type Layer = 'http' | 'domain' | 'adapters' | 'flows' | 'root';
 type Edge = { from: string; to: string; spec: string; typeOnly: boolean };
@@ -94,8 +96,19 @@ test('every relative import points at a file that exists', () => {
   assert.deepEqual(missing, []);
 });
 
-test('every source file has a test next to it, except the assembly file and pure type holders', () => {
-  const sources = walk(SRC).filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !f.endsWith('wire.ts'));
-  const untested = sources.filter((f) => !statSync(f.replace(/\.ts$/, '.test.ts'), { throwIfNoEntry: false }));
+test('src holds no test files: every test lives under tests/', () => {
+  assert.deepEqual(walk(SRC).filter((f) => f.endsWith('.test.ts')).map((f) => relative(SRC, f)), []);
+});
+
+test('every source file has a test at the same path under tests/, except the assembly file', () => {
+  const sources = walk(SRC).filter((f) => f.endsWith('.ts') && !f.endsWith('wire.ts'));
+  const untested = sources.filter((f) => !statSync(join(TESTS, relative(SRC, f)).replace(/\.ts$/, '.test.ts'), { throwIfNoEntry: false }));
   assert.deepEqual(untested.map((f) => relative(SRC, f)), []);
+});
+
+test('every test file under tests/ belongs to a source file (no orphans)', () => {
+  const orphans = walk(TESTS)
+    .filter((f) => f.endsWith('.test.ts') && !f.endsWith('structure.test.ts'))
+    .filter((f) => !statSync(join(SRC, relative(TESTS, f)).replace(/\.test\.ts$/, '.ts'), { throwIfNoEntry: false }));
+  assert.deepEqual(orphans.map((f) => relative(TESTS, f)), []);
 });

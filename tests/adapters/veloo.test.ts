@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { createMemoryStore } from './store.ts';
-import { createVelooClient, toVelooPriority } from './veloo.ts';
+import { createMemoryStore } from '../../src/adapters/store.ts';
+import { createVelooClient, toVelooPriority } from '../../src/adapters/veloo.ts';
 
 // 벨루 백엔드(app/auth.py, app/todo/core/routers/todos.py)의 모양을 흉내 낸 가짜 서버
 function startFakeVeloo() {

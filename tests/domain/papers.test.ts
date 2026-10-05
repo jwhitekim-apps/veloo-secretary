@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore } from '../adapters/store.ts';
-import { trackNewPapers, type Paper } from './papers.ts';
+import { createMemoryStore } from '../../src/adapters/store.ts';
+import { trackNewPapers, type Paper } from '../../src/domain/papers.ts';
 
 const NOW = new Date('2026-10-05T00:00:00Z');
 const paper = (key: string, title: string, syncedAt: string): Paper => ({ key, title, year: null, syncedAt });

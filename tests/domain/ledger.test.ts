@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore } from '../adapters/store.ts';
-import { isAssistantTask, syncCandidates, type Candidate } from './ledger.ts';
+import { createMemoryStore } from '../../src/adapters/store.ts';
+import { isAssistantTask, syncCandidates, type Candidate } from '../../src/domain/ledger.ts';
 
 type Task = { id: number; name: string; memo: string; priority: string; deadline: string; done: boolean };
 

@@ -114,12 +114,13 @@ src/
   config.ts  환경 변수 검사
   wire.ts    모든 것을 실제 서비스에 연결하는 유일한 곳
 api/         Vercel Functions 진입점
+tests/       모든 테스트(src와 같은 폴더 구조)
 scripts/     실제 서비스를 부르는 개발 도구
 supabase/    assistant.sql
 openspec/    스펙, 설계, 작업 목록
 ```
 
-의존은 한 방향으로만 흐릅니다. 계층이 가져오면 안 되는 것을 가져오거나, `.js` 대신 `.ts`로 가져오거나, 소스 옆에 테스트가 없으면 `src/structure.test.ts`가 실패합니다. 기여자와 AI 에이전트용 규칙은 [AGENTS.md](AGENTS.md)에 있습니다.
+의존은 한 방향으로만 흐릅니다. 계층이 가져오면 안 되는 것을 가져오거나, `.js` 대신 `.ts`로 가져오거나, `src/` 안에 테스트를 두거나, 소스에 짝이 되는 테스트가 없으면 `tests/structure.test.ts`가 실패합니다. 기여자와 AI 에이전트용 규칙은 [AGENTS.md](AGENTS.md)에 있습니다.
 
 ## 스크립트와 테스트
 

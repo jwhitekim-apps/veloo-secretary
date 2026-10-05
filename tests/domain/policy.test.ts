@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ACTION_TIERS, buildToolset, type Proposal, type Tier } from './policy.ts';
+import { ACTION_TIERS, buildToolset, type Proposal, type Tier } from '../../src/domain/policy.ts';
 
 const noop = async () => ({ ok: true });
 const namesOf = (tier: Tier) =>

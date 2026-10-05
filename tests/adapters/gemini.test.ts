@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pickModel, withFallback } from './gemini.ts';
+import { pickModel, withFallback } from '../../src/adapters/gemini.ts';
 
 const cfg = { model: 'flash', highModel: 'pro' };
 

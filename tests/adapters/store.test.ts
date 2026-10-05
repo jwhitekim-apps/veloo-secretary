@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore, createSupabaseStore } from './store.ts';
+import { createMemoryStore, createSupabaseStore } from '../../src/adapters/store.ts';
 
 test('memory store: the second record of the same source is reported as already processed', async () => {
   const store = createMemoryStore();

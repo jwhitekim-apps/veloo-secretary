@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildMessage, calendarHint, interpretInput, readBackText, validateInput, type GenerateJson } from './interpret.ts';
+import { buildMessage, calendarHint, interpretInput, readBackText, validateInput, type GenerateJson } from '../../src/domain/interpret.ts';
 
 // 2026-10-07 수요일 12:00 KST
 const NOW = new Date('2026-10-07T03:00:00Z');

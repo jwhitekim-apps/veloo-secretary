@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore } from '../adapters/store.ts';
-import { syncCandidates, type Candidate } from '../domain/ledger.ts';
-import { runDaily, type DailyDeps } from './daily.ts';
-import type { MailTriageResult } from '../domain/mail.ts';
-import type { Paper } from '../domain/papers.ts';
+import { createMemoryStore } from '../../src/adapters/store.ts';
+import { syncCandidates, type Candidate } from '../../src/domain/ledger.ts';
+import { runDaily, type DailyDeps } from '../../src/flows/daily.ts';
+import type { MailTriageResult } from '../../src/domain/mail.ts';
+import type { Paper } from '../../src/domain/papers.ts';
 
 // 한국 시간 2026-10-08(목) 07:00
 const T1 = new Date('2026-10-07T22:00:00Z');

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isBearerAuthorized } from './auth.js';
+import { isBearerAuthorized } from '../../src/http/auth.js';
 
 const req = (authorization?: string) =>
   new Request('http://localhost/x', { headers: authorization ? { authorization } : {} });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore } from './store.ts';
-import { createKakao } from './kakao.ts';
+import { createMemoryStore } from '../../src/adapters/store.ts';
+import { createKakao } from '../../src/adapters/kakao.ts';
 
 type Call = { url: string; init: RequestInit };
 

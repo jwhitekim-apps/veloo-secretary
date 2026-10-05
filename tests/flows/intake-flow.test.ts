@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore } from '../adapters/store.ts';
-import { syncCandidates, type Candidate } from '../domain/ledger.ts';
-import { processIntake } from './intake-flow.ts';
-import type { InterpretResult } from '../domain/interpret.ts';
+import { createMemoryStore } from '../../src/adapters/store.ts';
+import { syncCandidates, type Candidate } from '../../src/domain/ledger.ts';
+import { processIntake } from '../../src/flows/intake-flow.ts';
+import type { InterpretResult } from '../../src/domain/interpret.ts';
 
 type VTask = { id: number; name: string; memo: string; priority: string; deadline: string; done: boolean };
 

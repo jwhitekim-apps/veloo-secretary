@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createFolioReader } from './folio.ts';
+import { createFolioReader } from '../../src/adapters/folio.ts';
 
 test('the reader asks for the newest papers and maps the rows', async () => {
   const calls: { url: string; headers: Record<string, string> }[] = [];

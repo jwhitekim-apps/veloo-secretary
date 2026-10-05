@@ -114,12 +114,13 @@ src/
   config.ts  env checks
   wire.ts    the only place that connects everything to real services
 api/         Vercel Functions entry points
+tests/       all tests, mirroring the src/ layout
 scripts/     dev tools that call real services
 supabase/    assistant.sql
 openspec/    specs, design, tasks
 ```
 
-Dependencies point one way. `src/structure.test.ts` fails the build if a layer imports something it should not, if an import uses `.ts` instead of `.js`, or if a source file has no test beside it. See [AGENTS.md](AGENTS.md) for contributor and agent rules.
+Dependencies point one way. `tests/structure.test.ts` fails if a layer imports something it should not, if an import uses `.ts` instead of `.js`, if a test sits inside `src/`, or if a source file has no matching test. See [AGENTS.md](AGENTS.md) for contributor and agent rules.
 
 ## Scripts and tests
 

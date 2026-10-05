@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ConfigError, requireEnv } from './config.ts';
+import { ConfigError, requireEnv } from '../src/config.ts';
 
 test('returns the requested values when all are set', () => {
   const env = { INTAKE_SECRET: 's3cret', OTHER: 'ignored' };

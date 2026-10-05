@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { handleIntake } from './intake.ts';
+import { handleIntake } from '../../src/http/intake.ts';
 
 function setup(secret = 's3cret') {
   const calls: unknown[] = [];

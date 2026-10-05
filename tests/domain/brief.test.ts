@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { daysBetween, lastWeekStart, mailDeadlines, pickTopTasks, rankTasks, staleTasks, type BriefTask } from './brief.ts';
+import { daysBetween, lastWeekStart, mailDeadlines, pickTopTasks, rankTasks, staleTasks, type BriefTask } from '../../src/domain/brief.ts';
 
 const TODAY = '2026-10-05'; // 월요일
 const task = (over: Partial<BriefTask> = {}): BriefTask => ({

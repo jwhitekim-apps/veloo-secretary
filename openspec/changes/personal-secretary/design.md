@@ -129,11 +129,11 @@ src/
   wire.ts     모든 것을 실제 서비스에 연결하는 곳(조립)
 ```
 
-- 의존 방향: `domain`은 `domain`만, `http`는 `http`만, `adapters`는 실행 시점에 `adapters`만(타입은 `domain`에서 가져올 수 있다), `flows`는 실행 시점에 `domain`·`flows`만(타입은 `adapters`에서도 가져올 수 있다). `wire.ts`만 모든 계층을 안다. 이 규칙을 `src/structure.test.ts`가 검사하며, 일부러 규칙을 어긴 파일을 넣어 보고 테스트가 실패하는 것을 확인했다.
-- 같은 테스트가 "소스 파일 사이 import는 `.js` 경로"(결정 10), "가져오는 파일이 실제로 있다", "모든 소스 파일 옆에 테스트가 있다"도 지킨다.
+- 의존 방향: `domain`은 `domain`만, `http`는 `http`만, `adapters`는 실행 시점에 `adapters`만(타입은 `domain`에서 가져올 수 있다), `flows`는 실행 시점에 `domain`·`flows`만(타입은 `adapters`에서도 가져올 수 있다). `wire.ts`만 모든 계층을 안다. 이 규칙을 `tests/structure.test.ts`가 검사하며, 일부러 규칙을 어긴 파일을 넣어 보고 테스트가 실패하는 것을 확인했다.
+- 같은 테스트가 "소스 파일 사이 import는 `.js` 경로"(결정 10), "가져오는 파일이 실제로 있다", "`src/`에는 테스트를 두지 않는다", "모든 소스 파일에 같은 경로의 테스트가 `tests/`에 있다", "짝 없는 테스트가 없다"도 지킨다.
 - `folio.ts`는 "폴리오 읽기"(어댑터)와 "새 논문 판단"(규칙)이 섞여 있어서 둘로 나누었다(`adapters/folio.ts`, `domain/papers.ts`).
 - 실제 Gemini를 부르는 `interpret.live.ts`는 규칙 계층에 둘 수 없어서 실제 서비스를 쓰는 개발 도구가 모인 `scripts/`로 옮겼다.
-- 테스트는 각 파일 바로 옆에 둔다.
+- 테스트는 모두 `tests/`에 모으고 `src/`와 같은 폴더 구조로 둔다(`tests/domain/ledger.test.ts`). 소스 폴더에는 실행되는 코드만 남는다. 테스트는 `../../src/domain/ledger.ts`처럼 상대 경로로 가져온다.
 
 ## Risks / Trade-offs
 

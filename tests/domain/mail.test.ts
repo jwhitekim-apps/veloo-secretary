@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createMemoryStore } from '../adapters/store.ts';
-import { buildQuery, triageMail, type MailDeps } from './mail.ts';
+import { createMemoryStore } from '../../src/adapters/store.ts';
+import { buildQuery, triageMail, type MailDeps } from '../../src/domain/mail.ts';
 
 const meta = (id: string, subject: string) => ({ id, subject, from: `${id}@x.test`, date: 'Mon, 5 Oct 2026', snippet: `${subject} 요약` });
 
