@@ -1,4 +1,4 @@
-// src의 폴더 구조가 지키려는 규칙을 검사한다. 테스트는 모두 tests/에 모으고, src와 같은 폴더 구조를 따른다. 규칙이 깨지면 구조가 다시 흐트러지고 있다는 신호다.
+// src의 폴더 구조가 지키려는 규칙을 검사한다. 테스트는 모두 tests/에 모으고, src와 같은 폴더 구조를 따른다(브라우저용 public/ 은 tests/public/). 규칙이 깨지면 구조가 다시 흐트러지고 있다는 신호다.
 //
 //   http      요청 처리와 인증        → http만 안다
 //   domain    순수한 규칙과 계산       → domain만 안다 (네트워크, 외부 서비스를 모른다)
@@ -106,9 +106,21 @@ test('every source file has a test at the same path under tests/, except the ass
   assert.deepEqual(untested.map((f) => relative(SRC, f)), []);
 });
 
+// tests/public/x.test.ts 는 브라우저에서 쓰는 public/x.js 의 테스트이고, 나머지는 src/ 의 같은 경로 소스의 테스트다.
+const sourceOfTest = (testFile: string) => {
+  const rel = relative(TESTS, testFile).replace(/\.test\.ts$/, '');
+  return rel.startsWith('public/') ? join(ROOT, `${rel}.js`) : join(SRC, `${rel}.ts`);
+};
+
 test('every test file under tests/ belongs to a source file (no orphans)', () => {
   const orphans = walk(TESTS)
     .filter((f) => f.endsWith('.test.ts') && !f.endsWith('structure.test.ts'))
-    .filter((f) => !statSync(join(SRC, relative(TESTS, f)).replace(/\.test\.ts$/, '.ts'), { throwIfNoEntry: false }));
+    .filter((f) => !statSync(sourceOfTest(f), { throwIfNoEntry: false }));
   assert.deepEqual(orphans.map((f) => relative(TESTS, f)), []);
+});
+
+test('every browser script under public/ has a test at tests/public/', () => {
+  const scripts = walk(join(ROOT, 'public')).filter((f) => f.endsWith('.js'));
+  const untested = scripts.filter((f) => !statSync(join(TESTS, 'public', relative(join(ROOT, 'public'), f)).replace(/\.js$/, '.test.ts'), { throwIfNoEntry: false }));
+  assert.deepEqual(untested.map((f) => relative(ROOT, f)), []);
 });

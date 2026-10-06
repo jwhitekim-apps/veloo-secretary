@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>캡처 입력</title>
+<style>
+  :root { --bg: #f7f7f5; --fg: #1d1d1b; --muted: #6b6b66; --line: #d8d8d2; --card: #fff; --ok: #1b7f3b; --err: #b3261e; --accent: #2457c5; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161615; --fg: #ececE8; --muted: #9a9a93; --line: #3a3a36; --card: #1f1f1d; --ok: #5ccf7f; --err: #ff8a80; --accent: #7aa2ff; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  main { width: min(560px, 100% - 32px); padding: 24px 0; }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  p.hint { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+  textarea, input { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg); font: inherit; }
+  textarea { resize: vertical; min-height: 88px; }
+  textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { margin-top: 8px; padding: 10px 16px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
+  #status { margin-top: 16px; min-height: 1.5em; font-size: 15px; }
+  #status.sending { color: var(--muted); }
+  #status.accepted { color: var(--ok); }
+  #status.error { color: var(--err); }
+  #secret-form { margin-top: 16px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+  #secret-form[hidden] { display: none; }
+  #secret-note { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>캡처 입력</h1>
+  <p class="hint">Win+Shift+S로 영역을 캡처하고 이 화면에서 Ctrl+V. 글은 쓰고 Enter.</p>
+  <textarea id="text" placeholder="예: 금요일까지 교수님 메일 답장" autofocus></textarea>
+
+  <form id="secret-form" hidden>
+    <label for="secret">비밀값(INTAKE_SECRET)을 입력해 주세요. 이 브라우저에 저장됩니다.</label>
+    <input id="secret" type="password" autocomplete="off" required>
+    <button type="submit">저장하고 보내기</button>
+    <p id="secret-note"></p>
+  </form>
+
+  <div id="status" role="status" aria-live="polite"></div>
+</main>
+
+<script type="module">
+import {
+  JPEG_QUALITY, buildBody, classifyPaste, exclusive, fitWithin, forgetSecret, isTextField, readSecret, saveSecret, sendToIntake, stripDataUrl,
+} from './capture-lib.js';
+
+const textBox = document.getElementById('text');
+const statusBox = document.getElementById('status');
+const secretForm = document.getElementById('secret-form');
+const secretInput = document.getElementById('secret');
+const secretNote = document.getElementById('secret-note');
+
+// 시크릿 모드나 정책으로 localStorage 접근 자체가 던질 수 있어 가져오는 것도 감싼다.
+function getStorage() {
+  try { return window.localStorage; } catch { return undefined; }
+}
+const storage = getStorage();
+
+function show(kind, message) {
+  statusBox.className = kind;
+  statusBox.textContent = message;
+}
+
+// 비밀값이 없거나 거부되면 입력받고, 입력되면 보류해 둔 내용을 그대로 다시 보낸다.
+let pending = null;
+function askSecret(reason) {
+  secretNote.textContent = reason ?? '';
+  secretForm.hidden = false;
+  secretInput.value = '';
+  secretInput.focus();
+}
+
+async function deliver(body, secret) {
+  show('sending', '보내는 중…');
+  const result = await sendToIntake(body, secret);
+  if (result.kind === 'unauthorized') {
+    forgetSecret(storage);
+    show('error', result.message);
+    askSecret('비밀값이 맞지 않아 저장된 값을 지웠습니다.');
+    return result;
+  }
+  show(result.kind, result.message);
+  return result;
+}
+
+const submit = exclusive(async (body, onAccepted, secretOverride) => {
+  const secret = secretOverride ?? readSecret(storage);
+  pending = { body, onAccepted };
+  if (!secret) {
+    askSecret();
+    show('error', '비밀값을 입력하면 이어서 보냅니다.');
+    return { kind: 'needs-secret' };
+  }
+  secretForm.hidden = true;
+  const result = await deliver(body, secret);
+  if (result.kind === 'accepted') {
+    pending = null;
+    onAccepted?.();
+  }
+  return result;
+});
+
+async function send(body, onAccepted, secretOverride) {
+  const outcome = await submit(body, onAccepted, secretOverride);
+  if (outcome.skipped) show('error', '앞의 전송이 끝나면 다시 시도해 주세요.');
+}
+
+secretForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const secret = secretInput.value.trim();
+  if (!secret || !pending) return;
+  if (!saveSecret(storage, secret)) {
+    secretNote.textContent = '이 브라우저는 값을 저장하지 못해 매번 입력해야 합니다.';
+  }
+  await send(pending.body, pending.onAccepted, secret);
+});
+
+// 붙여넣은 이미지를 가로 1600px 이하 JPEG로 줄인다. 투명 PNG는 흰 배경에 올린다.
+async function imageToJpegBase64(file) {
+  const bitmap = await createImageBitmap(file);
+  const { width, height } = fitWithin(bitmap.width, bitmap.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, width, height);
+  context.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+  return stripDataUrl(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
+}
+
+document.addEventListener('paste', async (event) => {
+  const items = Array.from(event.clipboardData?.items ?? []);
+  const pasted = classifyPaste(items.map((i) => ({ kind: i.kind, type: i.type })));
+  if (pasted.kind === 'image') {
+    event.preventDefault();
+    try {
+      show('sending', '캡처를 줄이는 중…');
+      const jpegBase64 = await imageToJpegBase64(items[pasted.index].getAsFile());
+      await send(buildBody({ jpegBase64 }));
+    } catch (error) {
+      show('error', `이미지를 읽지 못했습니다: ${error instanceof Error ? error.message : error}`);
+    }
+  } else if (pasted.kind === 'text') {
+    // 글자를 받는 칸(비밀값 입력칸 포함)에 포커스가 있으면 브라우저에 맡기고, 없을 때만 입력창에 넣어 준다.
+    if (!isTextField(document.activeElement?.tagName)) {
+      event.preventDefault();
+      textBox.value += event.clipboardData.getData('text/plain');
+      textBox.focus();
+    }
+  } else {
+    event.preventDefault();
+    show('error', '이미지나 글만 붙여넣을 수 있습니다.');
+  }
+});
+
+// 한글 입력 중(조합 중)의 Enter는 글자를 확정하는 키이므로 전송하지 않는다.
+textBox.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  const body = buildBody({ text: textBox.value });
+  if (!body) return;
+  send(body, () => { textBox.value = ''; });
+});
+</script>
+</body>
+</html>
