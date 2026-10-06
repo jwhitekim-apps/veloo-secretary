@@ -34,6 +34,7 @@ Vercel Cron(매일) -+--> /api/cron/daily   메일 선별 -> 벨루에 반영 ->
 ## 기능
 
 - **빠른 입력**: 아이폰 단축어로 글, 음성, 화면 캡처(카톡 대화 등), 손글씨 사진을 보냅니다.
+- **PC 입력**: 브라우저에서 `/capture.html`을 열고 캡처를 `Ctrl+V`로 붙여넣거나 글 한 줄을 쓰고 Enter를 누릅니다. 설치가 필요 없습니다.
 - **모델 라우팅**: 가벼운 모델이 모두 읽고, 이미지가 손글씨로 판단되면 큰 모델이 다시 읽습니다.
 - **메일 선별**: Gmail을 키워드로 거른 뒤 모델이 중요도를 판단하고 마감을 뽑습니다.
 - **아침 브리핑**: 오늘 먼저 할 일 Top 3(한 줄 이유 포함), 밀린 일, 임박, 방치된 태스크, 메일 마감, 폴리오 새 논문, 지난주 리뷰.
@@ -69,7 +70,7 @@ Vercel Cron(매일) -+--> /api/cron/daily   메일 선별 -> 벨루에 반영 ->
 
    | 이름 | 용도 |
    |---|---|
-   | `INTAKE_SECRET` | 단축어가 Bearer 토큰으로 보내는 공유 비밀값 |
+   | `INTAKE_SECRET` | 단축어와 입력 페이지가 Bearer 토큰으로 보내는 공유 비밀값 |
    | `CRON_SECRET` | Cron 호출 인증(헤더는 Vercel이 붙임) |
    | `GEMINI_API_KEY`, `GEMINI_MODEL` | 텍스트와 일반 화면 캡처용 기본 모델 |
    | `GEMINI_HIGH_MODEL` | 선택. 손글씨를 다시 읽는 큰 모델 |
@@ -114,7 +115,8 @@ src/
   config.ts  환경 변수 검사
   wire.ts    모든 것을 실제 서비스에 연결하는 유일한 곳
 api/         Vercel Functions 진입점
-tests/       모든 테스트(src와 같은 폴더 구조)
+public/      브라우저 입력 페이지(capture.html)와 순수 로직(capture-lib.js)
+tests/       모든 테스트(src와 같은 폴더 구조, 브라우저 스크립트 테스트는 tests/public/)
 scripts/     실제 서비스를 부르는 개발 도구
 supabase/    assistant.sql
 openspec/    스펙, 설계, 작업 목록
@@ -152,6 +154,7 @@ npm run assistant:tasks # 비서가 만든 태스크 목록
 - [docs/delegation.md](docs/delegation.md) 위임 단계
 - [docs/mail-keywords.md](docs/mail-keywords.md) 메일 키워드
 - [docs/shortcut.md](docs/shortcut.md), [docs/shortcut-prompts.md](docs/shortcut-prompts.md) 아이폰 단축어 설정
+- [docs/desktop-capture.md](docs/desktop-capture.md) PC 브라우저에서 캡처나 글 한 줄로 입력하기
 - [openspec/changes/personal-secretary/](openspec/changes/personal-secretary/) 제안, 설계, 스펙, 작업 목록
 
 라이선스는 아직 정하지 않았습니다.

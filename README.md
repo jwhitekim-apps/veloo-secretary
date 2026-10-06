@@ -34,6 +34,7 @@ Vercel Cron (daily) +----> /api/cron/daily  triage mail -> sync to Veloo -> morn
 ## Features
 
 - **Quick capture** from iPhone Shortcuts: typed text, voice, screenshots (for example a chat), and photos of handwriting.
+- **Desktop capture**: open `/capture.html` in any browser, paste a screenshot with `Ctrl+V` or type a line and press Enter. No install.
 - **Model routing**: a light model reads everything; if the image is handwriting, a larger model re-reads it.
 - **Mail triage**: keyword filter on Gmail, then the model judges importance and extracts deadlines.
 - **Morning briefing**: top 3 things to do first with a short reason, overdue, due soon, stale tasks, mail deadlines, new papers from Folio, last week's review.
@@ -69,7 +70,7 @@ Requirements: Node 24, a Vercel account, a Supabase project, a Gemini API key, a
 
    | Name | Purpose |
    |---|---|
-   | `INTAKE_SECRET` | Shared secret the Shortcut sends as a Bearer token |
+   | `INTAKE_SECRET` | Shared secret the Shortcut and the capture page send as a Bearer token |
    | `CRON_SECRET` | Authenticates the Cron call (Vercel adds the header) |
    | `GEMINI_API_KEY`, `GEMINI_MODEL` | Base model for text and general screenshots |
    | `GEMINI_HIGH_MODEL` | Optional larger model used to re-read handwriting |
@@ -114,7 +115,8 @@ src/
   config.ts  env checks
   wire.ts    the only place that connects everything to real services
 api/         Vercel Functions entry points
-tests/       all tests, mirroring the src/ layout
+public/      browser capture page (capture.html) and its pure logic (capture-lib.js)
+tests/       all tests, mirroring the src/ layout (browser script tests in tests/public/)
 scripts/     dev tools that call real services
 supabase/    assistant.sql
 openspec/    specs, design, tasks
@@ -154,6 +156,7 @@ Written in Korean:
 - [docs/delegation.md](docs/delegation.md) delegation tiers
 - [docs/mail-keywords.md](docs/mail-keywords.md) mail keywords
 - [docs/shortcut.md](docs/shortcut.md), [docs/shortcut-prompts.md](docs/shortcut-prompts.md) iPhone Shortcut setup
+- [docs/desktop-capture.md](docs/desktop-capture.md) capture from a PC browser (paste a screenshot or a line)
 - [openspec/changes/personal-secretary/](openspec/changes/personal-secretary/) proposal, design, specs, tasks
 
 No license has been chosen yet.
