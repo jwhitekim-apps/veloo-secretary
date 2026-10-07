@@ -19,3 +19,8 @@
 
 - [x] 4.1 `docs/desktop-capture.md`에 사용법(`Win+Shift+S` 영역 캡처 → 페이지에서 `Ctrl+V`), 비밀값 저장 위험, 화면 내용이 Gemini로 전송된다는 점, 비밀값을 바꿀 때의 절차(폰 단축어도 함께)를 적고, `README.md`, `README_KO.md`, `AGENTS.md`의 구조 설명에 `public/`과 이 문서 링크를 추가한다. 검증: 문서의 단계대로 따라 하면 접수까지 된다
 - [ ] 4.2 배포 후 연구실 PC에서 실제 캡처와 글 한 줄로 시험한다. 검증: 두 입력 모두 카톡으로 결과가 오고 벨루에 태스크가 생기며, 기관 네트워크에서 페이지가 열린다
+
+## 5. 입력 페이지를 도메인 루트로 옮기기
+
+- [x] 5.1 `public/capture.html`을 `public/index.html`로 옮기고, 코드 주석과 문서(`docs/desktop-capture.md`, `docs/operations.md`, `README.md`, `README_KO.md`, `AGENTS.md`)의 주소와 파일 이름을 고친다. 검증: `npm run typecheck`와 `npm test`가 통과하고 저장소에 `capture.html`을 가리키는 문구가 완료된 작업 기록(1.1, 3.1) 외에는 남지 않는다
+- [ ] 5.2 배포 후 루트가 열리는지 확인한다. 검증: `https://cap.2joon.com/`과 `vercel.app` 루트가 200으로 입력 페이지를 돌려주고, `/capture.html`은 더 이상 열리지 않으며, `/capture-lib.js`와 `/api/intake`, `/api/cron/daily`는 이전처럼 동작한다

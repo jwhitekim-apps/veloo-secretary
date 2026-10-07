@@ -2,7 +2,7 @@
 
 연구실 PC처럼 폰을 꺼내기 번거로울 때, 브라우저에서 캡처나 글 한 줄을 붙여넣으면 아이폰 단축어와 같은 경로로 접수된다. 설치할 것은 없다.
 
-- 주소: `https://cap.2joon.com/capture.html` (북마크해 두면 편하다). 같은 서비스라 `https://personal-secretary-kappa.vercel.app/capture.html`로도 열린다.
+- 주소: `https://cap.2joon.com` (북마크해 두면 편하다). 같은 서비스라 `https://personal-secretary-kappa.vercel.app`로도 열린다.
 - 결과는 아이폰 입력과 같이 **카톡 "나에게 보내기"** 로 온다. 이 페이지에는 결과가 뜨지 않고 "접수했습니다"만 뜬다.
 
 ## 사용법
@@ -51,7 +51,7 @@
 
 ## 개발자용
 
-- 파일: `public/capture.html`(화면과 이벤트 연결), `public/capture-lib.js`(크기 계산, 요청 본문, 응답 해석, 비밀값 저장 같은 순수 로직). 서버(`api/`, `src/`)는 바뀌지 않았다.
+- 파일: `public/index.html`(화면과 이벤트 연결, 도메인 루트에서 열린다), `public/capture-lib.js`(크기 계산, 요청 본문, 응답 해석, 비밀값 저장 같은 순수 로직). 서버(`api/`, `src/`)는 바뀌지 않았다.
 - 테스트: `tests/public/capture-lib.test.ts`. `tests/structure.test.ts`가 `public/`의 JS마다 테스트가 있는지 확인한다.
 - `cap.2joon.com`은 DNS의 CNAME이 이 Vercel 프로젝트(`personal-secretary-kappa.vercel.app`)를 가리키고, 프로젝트에 `vercel domains add cap.2joon.com personal-secretary`로 연결했다. HTTPS 인증서는 Vercel이 자동으로 발급하고 갱신하므로 certbot이나 nginx 설정은 필요 없다(집 서버의 `veloo.2joon.com`과는 별개다).
 - 같은 Vercel 프로젝트의 정적 파일이라 페이지와 `/api/intake`가 같은 출처다. 새 도메인에서도 `/api/intake`가 같은 출처로 응답한다. 그래서 CORS 설정이 필요 없다. 다른 도메인이나 로컬 파일에서 열면 사전 요청이 401로 막힌다.

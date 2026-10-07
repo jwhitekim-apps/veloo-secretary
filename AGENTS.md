@@ -29,7 +29,7 @@ src/
   config.ts  env checks (leaf, imports nothing from src)
   wire.ts    the only place that connects everything to real services
 api/         Vercel Functions entry points (thin; call wire.ts)
-public/      static browser capture page (capture.html) + pure logic (capture-lib.js), served by Vercel on the same origin as the API
+public/      static browser capture page (index.html, served at the domain root) + pure logic (capture-lib.js), served by Vercel on the same origin as the API
 tests/       all tests, same folder layout as src/ (+ structure.test.ts); tests for public/ live in tests/public/
 scripts/     dev tools that hit real services
 supabase/    assistant.sql

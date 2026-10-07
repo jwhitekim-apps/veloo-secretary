@@ -14,7 +14,7 @@ Vercel Cron  --매일--> /api/cron/daily   (메일 선별 -> 벨루에 저장 ->
 
 | 이름 | 용도 | 필수 |
 |---|---|---|
-| `INTAKE_SECRET` | 단축어와 PC 입력 페이지(`/capture.html`) 인증. 바꾸면 폰 단축어도 같이 바꾼다([`desktop-capture.md`](desktop-capture.md)) | 예 |
+| `INTAKE_SECRET` | 단축어와 PC 입력 페이지(도메인 루트 `/`) 인증. 바꾸면 폰 단축어도 같이 바꾼다([`desktop-capture.md`](desktop-capture.md)) | 예 |
 | `CRON_SECRET` | Cron 호출 인증. 설정하면 Vercel이 호출 때 자동으로 `Authorization: Bearer`를 붙인다 | 예 |
 | `GEMINI_API_KEY`, `GEMINI_MODEL` | 모델 호출. 기본 모델(텍스트와 일반 화면 캡처). 지금은 `gemini-3.8-flash` | 예 |
 | `GEMINI_HIGH_MODEL` | 이미지가 **손글씨로 판단되면 다시 읽는** 큰 모델(`?quality=high`로 강제하는 요청에도 쓴다). 지금은 `gemini-3.1-pro-preview`. 없으면 다시 읽지 않고 기본 모델만 쓴다 | 아니오 |

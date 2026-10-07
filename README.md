@@ -34,7 +34,7 @@ Vercel Cron (daily) +----> /api/cron/daily  triage mail -> sync to Veloo -> morn
 ## Features
 
 - **Quick capture** from iPhone Shortcuts: typed text, voice, screenshots (for example a chat), and photos of handwriting.
-- **Desktop capture**: open `/capture.html` in any browser, paste a screenshot with `Ctrl+V` or type a line and press Enter. No install.
+- **Desktop capture**: open the capture page (`https://cap.2joon.com`) in any browser, paste a screenshot with `Ctrl+V` or type a line and press Enter. No install.
 - **Model routing**: a light model reads everything; if the image is handwriting, a larger model re-reads it.
 - **Mail triage**: keyword filter on Gmail, then the model judges importance and extracts deadlines.
 - **Morning briefing**: top 3 things to do first with a short reason, overdue, due soon, stale tasks, mail deadlines, new papers from Folio, last week's review.
@@ -115,7 +115,7 @@ src/
   config.ts  env checks
   wire.ts    the only place that connects everything to real services
 api/         Vercel Functions entry points
-public/      browser capture page (capture.html) and its pure logic (capture-lib.js)
+public/      browser capture page (index.html) and its pure logic (capture-lib.js)
 tests/       all tests, mirroring the src/ layout (browser script tests in tests/public/)
 scripts/     dev tools that call real services
 supabase/    assistant.sql

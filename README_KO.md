@@ -34,7 +34,7 @@ Vercel Cron(매일) -+--> /api/cron/daily   메일 선별 -> 벨루에 반영 ->
 ## 기능
 
 - **빠른 입력**: 아이폰 단축어로 글, 음성, 화면 캡처(카톡 대화 등), 손글씨 사진을 보냅니다.
-- **PC 입력**: 브라우저에서 `/capture.html`을 열고 캡처를 `Ctrl+V`로 붙여넣거나 글 한 줄을 쓰고 Enter를 누릅니다. 설치가 필요 없습니다.
+- **PC 입력**: 브라우저에서 캡처 페이지(`https://cap.2joon.com`)를 열고 캡처를 `Ctrl+V`로 붙여넣거나 글 한 줄을 쓰고 Enter를 누릅니다. 설치가 필요 없습니다.
 - **모델 라우팅**: 가벼운 모델이 모두 읽고, 이미지가 손글씨로 판단되면 큰 모델이 다시 읽습니다.
 - **메일 선별**: Gmail을 키워드로 거른 뒤 모델이 중요도를 판단하고 마감을 뽑습니다.
 - **아침 브리핑**: 오늘 먼저 할 일 Top 3(한 줄 이유 포함), 밀린 일, 임박, 방치된 태스크, 메일 마감, 폴리오 새 논문, 지난주 리뷰.
@@ -115,7 +115,7 @@ src/
   config.ts  환경 변수 검사
   wire.ts    모든 것을 실제 서비스에 연결하는 유일한 곳
 api/         Vercel Functions 진입점
-public/      브라우저 입력 페이지(capture.html)와 순수 로직(capture-lib.js)
+public/      브라우저 입력 페이지(index.html)와 순수 로직(capture-lib.js)
 tests/       모든 테스트(src와 같은 폴더 구조, 브라우저 스크립트 테스트는 tests/public/)
 scripts/     실제 서비스를 부르는 개발 도구
 supabase/    assistant.sql
