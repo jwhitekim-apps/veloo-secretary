@@ -16,6 +16,14 @@
 - **WHEN** 파일 이름 없이 도메인 주소(`/`)만 연다
 - **THEN** 입력 페이지가 보인다
 
+#### Scenario: 전용 도메인으로 HTTPS 접속
+- **WHEN** 브라우저에서 `https://cap.2joon.com`을 연다
+- **THEN** 유효한 인증서로 연결되어 입력 페이지가 보이고, 같은 도메인의 `/api/intake`로 요청이 간다
+
+#### Scenario: HTTP로 접속
+- **WHEN** `http://cap.2joon.com`을 연다
+- **THEN** HTTPS 주소로 이동한다
+
 #### Scenario: 검색에 노출되지 않음
 - **WHEN** 검색 엔진이 페이지를 수집하려 한다
 - **THEN** 페이지는 색인하지 말라는 표시를 담고 있다

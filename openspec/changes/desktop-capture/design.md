@@ -39,6 +39,9 @@
 ### 7. 입력 페이지는 도메인 루트(`/`)에서 연다
 `cap.2joon.com`이라는 도메인 이름이 이미 캡처 입력을 뜻하므로 `/capture.html`은 같은 말의 반복이다. 페이지를 `public/index.html`로 두어 설정 없이 루트에서 서빙한다. 같은 프로젝트의 `vercel.app` 루트도 입력 페이지가 되지만 페이지에는 비밀값이 없고 인증은 서버가 하므로 문제 없다. 옛 주소 `/capture.html`은 아직 쓰기 전이라 리다이렉트 없이 없앤다. 대안은 `vercel.json`의 rewrite로 `/`를 옛 파일에 연결하는 것이지만 설정이 늘어난다. 스크립트 `public/capture-lib.js`는 주소와 무관한 내부 파일이라 이름을 유지한다.
 
+### 8. 전용 도메인은 Vercel 프로젝트에 연결한다
+`cap.2joon.com`은 DNS의 CNAME이 이 Vercel 프로젝트를 가리키므로, 프로젝트에 도메인만 추가하면 Vercel이 HTTPS 인증서를 자동으로 발급하고 갱신한다(`vercel domains add cap.2joon.com personal-secretary`). 집 서버(`veloo.2joon.com`)에서 쓰는 nginx와 certbot 방식은 쓰지 않는다. 페이지가 집 서버에 있으면 `/api/intake`(Vercel)와 출처가 달라져 CORS나 프록시가 필요해지기 때문이다(결정 1). 기존 `vercel.app` 주소도 그대로 열려서 아이폰 단축어와 크론은 영향을 받지 않는다.
+
 ## Risks / Trade-offs
 
 - **비밀값이 기관 PC 브라우저에 남는다.** 관리자나 보안 프로그램이 볼 수 있다. 쓰기 범위는 태스크 추가뿐이라 영향은 스팸 태스크와 Gemini 비용이다. 의심되면 `INTAKE_SECRET`을 바꾸고(폰 단축어도 같이 바꿔야 한다) 후속으로 PC 전용 비밀값을 만든다.
