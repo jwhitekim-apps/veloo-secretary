@@ -1,6 +1,6 @@
 // Gmail 읽기 전용 클라이언트. 쓰기·발송 메서드는 일부러 만들지 않았고, 권한(gmail.readonly)도 읽기뿐이다.
 // threadSubject: 같은 스레드에서 가장 먼저 받은 메일의 제목. 답장·후속 메일이 원래 메일과 같은 이름으로 보이게 하려고 쓴다.
-export type MailMeta = { id: string; subject: string; from: string; date: string; snippet: string; threadSubject?: string };
+export type MailMeta = { id: string; subject: string; from: string; date: string; snippet: string; threadId?: string; threadSubject?: string };
 
 type Part = { mimeType?: string; body?: { data?: string }; parts?: Part[] };
 
@@ -111,6 +111,7 @@ export function createGmail(config: {
           from: header('From'),
           date: header('Date'),
           snippet: m.snippet ?? '',
+          ...(m.threadId ? { threadId: m.threadId } : {}),
           ...(threadSubject ? { threadSubject } : {}),
         });
       }

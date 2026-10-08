@@ -137,10 +137,117 @@ export function pack(lines: string[], limit: number, maxMessages: number): strin
   return chunks.map((c) => c.join('\n'));
 }
 
-// 한 구역을 최대 cap개까지 줄로 만들고, 넘으면 남은 개수를 한 줄로 알린다.
-function section<T>(label: string, items: T[], render: (item: T) => string, cap = SECTION_CAP): string[] {
-  const lines = items.slice(0, cap).map((item) => `${label}: ${render(item)}`);
-  if (items.length > cap) lines.push(`${label}: 외 ${items.length - cap}건`);
+// 보고의 한 구역: 이름 한 줄 아래에 항목을 한 줄씩 적는다. 이름이 비어 있으면 항목만 적는 줄이다.
+type Section = { title: string; items: string[] };
+
+// 말풍선이 여럿일 때 붙이는 쪽 표시("(2/3)")가 차지할 자리. 모든 말풍선이 이만큼 덜 채워진다.
+const PAGE_TAG_RESERVE = 8;
+
+function renderSection(section: Section): string {
+  return section.title ? [`[${section.title}]`, ...section.items].join('\n') : section.items.join('\n');
+}
+
+// 첫 조각이 현재 말풍선의 남은 자리에 넣기에 너무 작으면(이름과 항목 하나도 못 담으면) 새 말풍선에서 시작한다.
+const MIN_PIECE = 24;
+
+// 구역을 중요한 순서대로 말풍선에 채운다. 구역은 쪼개지 않고, 다음 구역이 안 들어가면 다음 말풍선으로 넘긴다.
+// 구역 하나가 말풍선 하나보다 길 때만 항목 단위로 나누고, 첫 조각은 현재 말풍선의 남은 자리를 쓰며,
+// 이어지는 조각에는 "(이어서)"를 붙여 구역 이름을 다시 적는다.
+// 통 수를 넘으면 그 구역부터 뒤쪽 구역을 통째로 빼고 "…외 N건 생략"을 남긴다(중요도 순서는 뒤바뀌지 않는다).
+// 말풍선이 둘 이상이면 머리말에 "(1/3)"을, 나머지 말풍선 맨 앞에 "(2/3)"을 붙인다.
+export function packSections(header: string, sections: Section[], limit: number, maxMessages: number): string[] {
+  const capacity = limit - PAGE_TAG_RESERVE;
+  const size = (blocks: string[]) => blocks.join('\n\n').length;
+  const bubbles: string[][] = [[clip(header, capacity)]];
+  let omitted = 0;
+  let full = false;
+
+  // 블록 하나를 현재 말풍선에, 안 들어가면 새 말풍선에 둔다. 통 수가 다 찼으면 빠진 항목 수만 센다.
+  const place = (block: string, itemCount: number, forceNew = false): void => {
+    const last = bubbles[bubbles.length - 1];
+    if (!forceNew && size([...last, block]) <= capacity) last.push(block);
+    else if (bubbles.length < maxMessages) bubbles.push([block]);
+    else {
+      full = true;
+      omitted += itemCount;
+    }
+  };
+
+  for (const section of sections) {
+    if (full) {
+      omitted += section.items.length;
+      continue;
+    }
+    const whole = renderSection(section);
+    if (whole.length <= capacity) {
+      place(whole, section.items.length);
+      continue;
+    }
+
+    // 말풍선 하나에도 안 들어가는 구역: 항목 단위로 나눈다.
+    const remaining = capacity - size(bubbles[bubbles.length - 1]) - 2;
+    const startNew = remaining < MIN_PIECE;
+    let room = startNew ? capacity : remaining;
+    let pieceIndex = 0;
+    let items: string[] = [];
+    const titleOf = () => (pieceIndex === 0 ? section.title : `${section.title} (이어서)`);
+    const flush = () => {
+      if (items.length === 0) return;
+      place(renderSection({ title: titleOf(), items }), items.length, pieceIndex === 0 && startNew);
+      pieceIndex += 1;
+      items = [];
+      room = capacity;
+    };
+    for (const raw of section.items) {
+      if (full) {
+        omitted += 1;
+        continue;
+      }
+      const item = clip(raw, Math.max(10, capacity - titleOf().length - 4));
+      if (items.length > 0 && renderSection({ title: titleOf(), items: [...items, item] }).length > room) {
+        flush();
+        if (full) {
+          omitted += 1;
+          continue;
+        }
+      }
+      items.push(item);
+    }
+    flush();
+  }
+
+  if (omitted > 0) {
+    const last = bubbles[bubbles.length - 1];
+    const summary = () => `…외 ${omitted}건 생략`;
+    // 안내가 들어갈 자리가 없으면 이 통의 뒤쪽 항목을 줄이면서 그만큼 개수에 더한다.
+    while (size([...last, summary()]) > capacity) {
+      const lines = last[last.length - 1].split('\n');
+      if (last.length === 1 && lines.length <= 1) break; // 머리말만 남았다
+      if (lines.length > 2) {
+        lines.pop();
+        omitted += 1;
+        last[last.length - 1] = lines.join('\n');
+      } else {
+        omitted += lines.length > 1 ? 1 : 0;
+        last.pop();
+        if (last.length === 0) break;
+      }
+    }
+    last.push(summary());
+  }
+
+  const total = bubbles.length;
+  return bubbles.map((blocks, index) => {
+    if (total === 1) return blocks.join('\n\n');
+    if (index === 0) return [`${blocks[0]} (1/${total})`, ...blocks.slice(1)].join('\n\n');
+    return [`(${index + 1}/${total})`, ...blocks].join('\n\n');
+  });
+}
+
+// 한 구역을 최대 cap개까지 항목으로 만들고, 넘으면 남은 개수를 항목 하나로 알린다.
+function capped<T>(items: T[], render: (item: T) => string, cap = SECTION_CAP): string[] {
+  const lines = items.slice(0, cap).map((item) => `· ${render(item)}`);
+  if (items.length > cap) lines.push(`· 외 ${items.length - cap}건`);
   return lines;
 }
 
@@ -158,38 +265,42 @@ function collapse(created: { name: string; deadline: string }[]): { name: string
 
 export function buildReport(input: ReportInput, limit: number, maxMessages = 3): string[] {
   const timeZone = input.timeZone ?? DEFAULT_TIME_ZONE;
-  const lines: string[] = [header(input.now, timeZone)];
+  const sections: Section[] = [];
+  const add = (title: string, items: string[]) => {
+    if (items.length > 0) sections.push({ title, items });
+  };
 
-  // 위에서부터 중요한 순서다. 카톡 분량이 모자라면 아래쪽부터 잘린다.
-  const body: string[] = [];
-  for (const f of input.failures) body.push(`⚠ 실패: ${f}`);
-  for (const p of input.proposals) {
-    body.push(`확인: '${p.name}' 마감 ${monthDay(p.currentDeadline)}→${monthDay(p.proposedDeadline)} 제안(벨루에서 직접 수정)`);
-  }
-  for (const u of input.uncertain) body.push(`확인: ${u}`);
-  (input.top ?? []).forEach((t, i) => body.push(`먼저 ${i + 1}) ${t.name} — ${t.reason}`));
-  for (const t of input.tasksToday) {
-    const note = stripMarker(t.memo).split('\n')[0];
-    body.push(`오늘: ${t.name}${note ? ` ${note}` : ''}`);
-  }
-  body.push(
-    ...section('밀린 일', input.overdue ?? [], (t) => `${t.name}(${monthDay(t.deadline)}${t.days !== undefined ? `, ${t.days}일째` : ''})`),
+  // 위에서부터 중요한 순서다. 카톡 분량이 모자라면 아래쪽 구역부터 통째로 빠진다.
+  add('⚠ 실패', input.failures.map((f) => `· ${f}`));
+  add('확인', [
+    ...input.proposals.map((p) => `· '${p.name}' 마감 ${monthDay(p.currentDeadline)}→${monthDay(p.proposedDeadline)} 제안(벨루에서 직접 수정)`),
+    ...input.uncertain.map((u) => `· ${u}`),
+  ]);
+  add('먼저 할 일', (input.top ?? []).map((t, i) => `${i + 1}) ${t.name} — ${t.reason}`));
+  add(
+    '오늘',
+    input.tasksToday.map((t) => {
+      const note = stripMarker(t.memo).split('\n')[0];
+      return `· ${t.name}${note ? ` ${note}` : ''}`;
+    }),
   );
-  body.push(
-    ...section('임박', input.upcoming ?? [], (t) => `${t.name}(${monthDay(t.deadline)}${t.daysLeft !== undefined ? `·${t.daysLeft}일 후` : ''})`),
-  );
-  body.push(...section('메일 마감', input.mailDeadlines ?? [], (t) => `${t.name}(${monthDay(t.deadline)}·${t.daysLeft}일 후)`, SMALL_CAP));
-  body.push(...section('방치', input.stale ?? [], (t) => `${t.name}(${t.days}일째)`, 2));
+  add('밀린 일', capped(input.overdue ?? [], (t) => `${t.name}(${monthDay(t.deadline)}${t.days !== undefined ? `, ${t.days}일째` : ''})`));
+  add('임박', capped(input.upcoming ?? [], (t) => `${t.name}(${monthDay(t.deadline)}${t.daysLeft !== undefined ? `·${t.daysLeft}일 후` : ''})`));
+  add('메일 마감', capped(input.mailDeadlines ?? [], (t) => `${t.name}(${monthDay(t.deadline)}·${t.daysLeft}일 후)`, SMALL_CAP));
+  add('방치', capped(input.stale ?? [], (t) => `${t.name}(${t.days}일째)`, 2));
   if (input.papers && input.papers.count > 0) {
-    body.push(`폴리오: 이번 주 새 논문 ${input.papers.count}편 — ${input.papers.titles.map((t) => clip(t, TITLE_LIMIT)).join(', ')}`);
+    add(`폴리오 · 이번 주 새 논문 ${input.papers.count}편`, input.papers.titles.map((t) => `· ${clip(t, TITLE_LIMIT)}`));
   }
-  if (input.weekly) body.push(`지난주: 완료 ${input.weekly.completed} · 생성 ${input.weekly.created} · 밀림 ${input.weekly.overdue}`);
-  body.push(...section('추가', collapse(input.created), (c) => `${c.name}(${monthDay(c.deadline)})${c.times > 1 ? ` ×${c.times}` : ''}`));
-  body.push(...section('할 일', input.undated ?? [], (t) => (t.note ? `${t.name}(${t.note})` : t.name)));
-  for (const n of input.notes ?? []) body.push(`참고: ${n}`);
+  if (input.weekly) add('지난주', [`· 완료 ${input.weekly.completed} · 생성 ${input.weekly.created} · 밀림 ${input.weekly.overdue}`]);
+  add(
+    '추가',
+    capped(collapse(input.created), (c) => `${c.name}(${c.deadline ? monthDay(c.deadline) : '마감 없음'})${c.times > 1 ? ` ×${c.times}` : ''}`),
+  );
+  add('할 일', capped(input.undated ?? [], (t) => (t.note ? `${t.name}(${t.note})` : t.name)));
+  add('참고', (input.notes ?? []).map((n) => `· ${n}`));
 
-  if (body.length === 0) body.push('오늘 일정 없음. 추가·확인할 사항도 없어요.');
-  else if (input.tasksToday.length === 0) body.push('오늘 마감인 일정은 없어요.');
+  if (sections.length === 0) sections.push({ title: '', items: ['오늘 일정 없음. 추가·확인할 사항도 없어요.'] });
+  else if (input.tasksToday.length === 0) sections.push({ title: '', items: ['오늘 마감인 일정은 없어요.'] });
 
-  return pack([...lines, ...body], limit, maxMessages);
+  return packSections(header(input.now, timeZone), sections, limit, maxMessages);
 }

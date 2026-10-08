@@ -35,7 +35,7 @@ console.log(`키워드에 걸린 메일 ${result.stats.found}건 → 중요하�
 console.log(`\n[벨루에 추가될 후보] ${result.candidates.length}건`);
 for (const c of result.candidates) {
   console.log(`  메일: ${c.subject}`);
-  for (const t of c.tasks) console.log(`    - ${t.name} | 마감 ${t.deadline}${t.memo ? ` | ${t.memo}` : ''} | ${t.priority}`);
+  for (const t of c.tasks) console.log(`    - ${t.name} | 마감 ${t.deadline || '없음(확인 필요)'}${t.memo ? ` | ${t.memo}` : ''} | ${t.priority}`);
 }
 console.log(`\n[확인이 필요한 항목] ${result.uncertain.length}건`);
 for (const u of result.uncertain) console.log(`  - ${u}`);

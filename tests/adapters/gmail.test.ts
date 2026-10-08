@@ -137,3 +137,15 @@ test('when the thread lookup fails the mail is still returned and just has no th
   assert.equal(m.subject, 'A');
   assert.equal('threadSubject' in m, false);
 });
+
+test('search returns the thread id of each mail, and leaves the key out when the response has none', async () => {
+  const g = fakeGoogle({
+    '/messages?q=': { messages: [{ id: 'a' }, { id: 'b' }] },
+    '/messages/a?format=metadata': { threadId: 't1', payload: withSubject('A') },
+    '/messages/b?format=metadata': { payload: withSubject('B') },
+    '/threads/t1?format=metadata': { messages: [{ internalDate: '1', payload: withSubject('A') }] },
+  });
+  const [a, b] = await createGmail({ ...cfg, fetch: g.impl }).search('x');
+  assert.equal(a.threadId, 't1');
+  assert.equal('threadId' in b, false);
+});

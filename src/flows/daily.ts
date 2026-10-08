@@ -96,13 +96,17 @@ export async function runDaily(deps: DailyDeps): Promise<DailyOutcome> {
         }
       } else {
         for (const id of triage.notImportantIds) await store.record('mail-seen', id, { at: nowIso }).catch(() => false);
+        // 쓰기에 실패한 후보에 관여한 메일은 "본 메일"로 표시하지 않아서 다음 실행에서 다시 시도한다.
+        // 한 메일이 여러 후보(마감 있는 일과 스레드로 합친 마감 없는 일)에 걸칠 수 있어서 모든 후보가 끝난 뒤에 정한다.
+        const seen = new Set<string>();
+        const blocked = new Set<string>();
         for (const c of triage.candidates) {
           const synced = await deps.sync(c.tasks, { kind: 'mail', id: c.mailId });
           for (const f of synced.failed) await fail(`벨루 쓰기 실패: ${f.candidate.name} (${f.error})`);
           notes.push(...synced.warnings);
-          // 쓰기에 실패한 메일은 "본 메일"로 표시하지 않아서 다음 실행에서 다시 시도한다.
-          if (synced.failed.length === 0) await store.record('mail-seen', c.mailId, { at: nowIso }).catch(() => false);
+          for (const id of [c.mailId, ...(c.alsoMailIds ?? [])]) (synced.failed.length === 0 ? seen : blocked).add(id);
         }
+        for (const id of seen) if (!blocked.has(id)) await store.record('mail-seen', id, { at: nowIso }).catch(() => false);
       }
     } catch (e) {
       await fail(`메일 선별 실패: ${errorText(e)}`);
