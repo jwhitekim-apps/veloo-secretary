@@ -167,6 +167,6 @@ npm run assistant:tasks # 비서가 만든 태스크 목록
 - [docs/mail-keywords.md](docs/mail-keywords.md) 메일 키워드
 - [docs/shortcut.md](docs/shortcut.md), [docs/shortcut-prompts.md](docs/shortcut-prompts.md) 아이폰 단축어 설정
 - [docs/desktop-capture.md](docs/desktop-capture.md) PC 브라우저에서 캡처나 글 한 줄로 입력하기
-- [openspec/changes/personal-secretary/](openspec/changes/personal-secretary/) 제안, 설계, 스펙, 작업 목록
+- [openspec/specs/](openspec/specs/) 지금 동작을 정의한 스펙, [openspec/changes/archive/](openspec/changes/archive/) 끝낸 변경의 제안·설계·작업 목록
 
 라이선스는 아직 정하지 않았습니다.

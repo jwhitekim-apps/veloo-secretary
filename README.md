@@ -169,6 +169,6 @@ Written in Korean:
 - [docs/mail-keywords.md](docs/mail-keywords.md) mail keywords
 - [docs/shortcut.md](docs/shortcut.md), [docs/shortcut-prompts.md](docs/shortcut-prompts.md) iPhone Shortcut setup
 - [docs/desktop-capture.md](docs/desktop-capture.md) capture from a PC browser (paste a screenshot or a line)
-- [openspec/changes/personal-secretary/](openspec/changes/personal-secretary/) proposal, design, specs, tasks
+- [openspec/specs/](openspec/specs/) current behavior specs; [openspec/changes/archive/](openspec/changes/archive/) proposals, designs and tasks of finished changes
 
 No license has been chosen yet.

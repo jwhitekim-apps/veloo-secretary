@@ -5,7 +5,7 @@ Human-facing docs: `README.md` (English), `README_KO.md` (Korean), `docs/` (Kore
 
 ## What this is
 
-A personal secretary. Input arrives from iPhone Shortcuts (text / voice / screenshot / photo) and Gmail keyword triage. Tasks are written to Veloo (the owner's todo app, the central ledger). A morning briefing goes out through KakaoTalk "send to me". Specs live in `openspec/changes/personal-secretary/`.
+A personal secretary. Input arrives from iPhone Shortcuts (text / voice / screenshot / photo) and Gmail keyword triage. Tasks are written to Veloo (the owner's todo app, the central ledger). A morning briefing goes out through KakaoTalk "send to me". Current behavior specs live in `openspec/specs/` (one folder per capability); the design history is in `openspec/changes/archive/`.
 
 ## Commands
 
@@ -57,7 +57,9 @@ English `type: what` messages (feat, fix, docs, refactor, test, chore, ...), at 
 
 ## Spec workflow
 
-Behavior changes go through OpenSpec: update `openspec/changes/personal-secretary/{proposal,design,tasks}.md` and `specs/*/spec.md`, then run `openspec validate personal-secretary --strict`. Remaining tasks: 5.4, 6.4, 7.1.
+Behavior changes go through OpenSpec: start a change (`/openspec-propose`), write its proposal, delta specs, design and tasks, and stop for review before implementing (`/opsx:apply`). Validate with `openspec validate <change> --strict`; archiving (`/opsx:archive`) syncs the delta specs into `openspec/specs/`.
+
+The first big change (`2026-10-08-personal-secretary` in the archive) was archived with five real-world checks still open in its `tasks.md`: 5.4 (mail keyword review), 6.4 (switch-off and rollback drill), 7.1 (two-day usage record), 8.5 (undated mail task seen in a real morning run) and 9.4 (eyeballing the sectioned report). Do not treat them as verified.
 
 ## Do not touch without asking
 
