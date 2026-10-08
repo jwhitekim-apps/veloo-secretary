@@ -45,17 +45,29 @@ Vercel Cron (daily) +----> /api/cron/daily  triage mail -> sync to Veloo -> morn
 ## Sample briefing
 
 ```
-10/5(Mon) morning report
-First: 1) Submit report - due today  2) Pay advisor fee - 2 days left  3) Read ch.4 - stale
-Today: Submit report
-Overdue: Book order (3 days)
-Due soon: Pay advisor fee (2 days)
-Mail deadline: Scholarship form 10/9
-Folio: 2 new papers this week
-Last week: done 6 / created 8 / overdue 2
+10/8(Thu) morning report (1/2)
+
+[First things to do]
+1) Submit report - due today
+2) Pay advisor fee - 2 days left
+3) Read ch.4 - stale
+
+[Today]
+· Submit report
+
+(2/2)
+
+[Overdue]
+· Book order (3 days)
+
+[Due soon]
+· Pay advisor fee (in 2 days)
+
+[Last week]
+· done 6 · created 8 · overdue 2
 ```
 
-Long reports continue across up to three Kakao messages (200 characters each).
+The real report is in Korean (this sample is translated). It is split into sections, and a section is never cut in half across Kakao messages. A long report continues across up to three messages (200 characters each).
 
 ## Getting started
 
