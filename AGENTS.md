@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Guidance for AI coding agents (Claude Code, Codex, etc.) working in this repo.
-Human-facing docs: `README.md` (English), `README_KO.md` (Korean), `docs/` (Korean).
+Human-facing docs: `README.md` (English), `docs/` (Korean).
 
 ## What this is
 
