@@ -117,12 +117,14 @@ test('?async=1 answers 202 right away, before the slow interpretation has finish
   assert.deepEqual(notes, ['[비서] 추가했어요 1건: 랩미팅(10/13).']);
 });
 
-test('?async=1 with ?dry=1 still processes in the background as a dry run', async () => {
+test('?async=1 with ?dry=1 returns the dry-run result without background work or notification', async () => {
   const { deps, tasks, notes, release } = asyncDeps();
-  await handleIntake(asyncPost('?async=1&dry=1', { text: 'x' }), deps);
   release();
-  await Promise.all(tasks);
-  assert.deepEqual(notes, ['[비서] 시험 결과']);
+  const res = await handleIntake(asyncPost('?async=1&dry=1', { text: 'x' }), deps);
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { message: '시험 결과' });
+  assert.equal(tasks.length, 0);
+  assert.deepEqual(notes, []);
 });
 
 test('?async=1 rejects invalid input immediately and never starts background work', async () => {

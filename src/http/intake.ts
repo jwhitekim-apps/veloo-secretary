@@ -44,7 +44,7 @@ export async function handleIntake(request: Request, deps: IntakeDeps): Promise<
   const options = { dryRun, quality: params.get('quality') === 'high' ? ('high' as const) : undefined };
 
   const { runInBackground, notify } = deps;
-  if (params.get('async') === '1' && runInBackground && notify) {
+  if (!dryRun && params.get('async') === '1' && runInBackground && notify) {
     const invalid = deps.validate?.(input);
     if (invalid) return reply({ error: invalid }, 400);
     runInBackground(

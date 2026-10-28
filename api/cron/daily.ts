@@ -3,7 +3,7 @@ import { requireEnv } from '../../src/config.js';
 import { createDailyRunner } from '../../src/wire.js';
 
 // Vercel Cron은 CRON_SECRET 환경 변수가 있으면 "Authorization: Bearer <값>"을 붙여 호출한다.
-// ?dry=1 이면 보고 내용만 만들어 돌려주고 카톡은 보내지 않는다(메일 선별과 벨루 쓰기는 평소처럼 실행된다).
+// ?dry=1 이면 메일을 선별해 추가 후보와 보고 내용만 돌려주고, 벨루·처리 이력·상태·카톡에는 아무것도 쓰지 않는다.
 export default {
   async fetch(request: Request): Promise<Response> {
     const { CRON_SECRET } = requireEnv(process.env, ['CRON_SECRET']);

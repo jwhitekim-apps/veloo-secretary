@@ -22,7 +22,7 @@ Vercel Cron  --매일--> /api/cron/daily   (메일 선별 -> 벨루에 저장 ->
 | `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` | Gmail 읽기 | 매일 실행에 필요 |
 | `MAIL_KEYWORDS` | 메일 선별 키워드(쉼표 구분) | 매일 실행에 필요 |
 | `MAIL_LOOKBACK_DAYS` | 조회 기간(기본 2일) | 아니오 |
-| `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REFRESH_TOKEN` | 카톡 나에게 보내기 | 매일 실행에 필요 |
+| `KAKAO_REST_API_KEY`, `KAKAO_CLIENT_SECRET`, `KAKAO_REFRESH_TOKEN` | 카톡 나에게 보내기 | 매일 실행과 비동기 입력 알림에 필요 |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` | 처리 이력·토큰 저장소 | 사실상 필요(아래) |
 
 항목 이름만 `.env.example`에 있다. 실제 값은 `.env.local`(로컬)과 Vercel 환경 변수에만 둔다.
